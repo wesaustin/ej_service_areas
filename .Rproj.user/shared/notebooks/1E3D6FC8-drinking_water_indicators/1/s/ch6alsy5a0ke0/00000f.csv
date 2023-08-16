@@ -1,0 +1,5 @@
+"0","SDWA_violations <- read_csv(""C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/sdwis/SDWA_VIOLATIONS.csv"")
+"
+"2","Error in read_csv(""C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/sdwis/SDWA_VIOLATIONS.csv"") : 
+  could not find function ""read_csv""
+"
