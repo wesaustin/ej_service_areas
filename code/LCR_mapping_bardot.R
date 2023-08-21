@@ -206,12 +206,23 @@ summary(LCR_lm_tr)
 
 
 ##Interactive map (similar to leaflet)
+##Recreating the NJ dataset since this time we are looking at BG and not tracts
 
-tmap_mode("view")
+Lead_viol_NJ <- Lead_violations %>%
+  filter(ST_ABBREV == "NJ")
+
+NJ_bg <- tigris::block_groups("NJ") %>%
+  rename(tract = GEOID) %>%
+  st_transform(crs = 4326)
+
+Lead_viol_NJ <- left_join(NJ_bg, Lead_viol_NJ)
+
+st_as_sf(Lead_viol_NJ)
+
+tmap_mode("view") #this mode can be changed if you want to export the map, use mode "plot"
 tm_shape(Lead_viol_NJ) +
-  tm_polygons(col = "AVG_viol_CBG", midpoint = 0) +
+  tm_polygons(col = "avg_viol_CBG", alpha = 0.5, midpoint = 0) + #change the alpha for transparency
   tm_basemap("Esri.WorldTopoMap")
-
 
 
 
