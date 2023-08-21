@@ -107,7 +107,7 @@ st_as_sf(health_viol_AL)
 health_plot_AL <- ggplot() + 
   geom_sf(data = health_viol_AL, aes(fill = avg_viol_CBG, geometry = geometry)) +
   scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = AL_bg, fill = NA, colour = "#00800033", size= 0.05) + ##check border size
+  geom_sf(data = AL_bg, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
@@ -134,7 +134,7 @@ st_as_sf(health_viol_NJ)
 health_plot_NJ <- ggplot() + 
   geom_sf(data = health_viol_NJ, aes(fill = avg_viol_CBG, geometry = geometry)) +
   scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = NJ_tract, fill = NA, colour = "#00800033", size= 0.05) + ##check border size  ggthemes::theme_map() + 
+  geom_sf(data = NJ_tract, fill = NA, colour = "#00800013", size= 0.05) + ##check border size  ggthemes::theme_map() + 
   theme(legend.position = "right")
 
 health_plot_NJ
@@ -164,7 +164,7 @@ health_viol_WA <- health_viol_WA %>%
 health_plot_WA <- ggplot() + 
   geom_sf(data = health_viol_WA, aes(fill = avg_county_viol, geometry = geometry)) +
   scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = WA_counties, fill = NA, colour = "#00800033", size= 0.05) + ##check border size
+  geom_sf(data = WA_counties, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
