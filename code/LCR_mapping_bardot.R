@@ -23,7 +23,8 @@ pacman::p_load(
   stringr, # string manipulation
   magrittr,
   tidycensus,
-  mapview
+  mapview,
+  MASS
 )
 
 
@@ -119,6 +120,8 @@ Lead_plot_AL <- ggplot() +
 
 Lead_plot_AL
 
+ggsave(filename = 'Alabama_LCR_CBG_viol.pdf', path = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/output")
+
 ##SUCCESS!!
 
 
@@ -143,6 +146,8 @@ Lead_plot_NJ <- ggplot() +
   theme(legend.position = "right")
 
 Lead_plot_NJ
+
+ggsave(filename = 'NJ_tract_LCR_violations.pdf', path = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/output")
 
 ##Success! A map with different census tracts showing the average number of LCR
 ##violations per tract
@@ -174,6 +179,9 @@ Lead_plot_WA <- ggplot() +
 
 Lead_plot_WA
 
+ggsave(filename = 'WA_county_LCR_violations.pdf', path = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/output")
+
+
 ##########################################################################################
 ##########################################################################################
 
@@ -181,11 +189,15 @@ summary(Lead_violations[c("avg_viol_CBG", "MINORPCT", "PRE1960PCT", "LOWINCPCT")
 
 ##Model the relationship between the number of violations and EJ indicators
 
-#CBG-level : NJ
+#CBG-level - National
 
-LCR_lm <- lm(avg_viol_CBG ~ MINORPCT + PRE1960PCT + LOWINCPCT, data = Lead_violations)
-
+LCR_lm <- glm(avg_viol_CBG ~ MINORPCT + PRE1960PCT + LOWINCPCT, data = Lead_violations, family = negative.binomial(theta = 1.5))
 summary(LCR_lm)
+
+##CBG level in subset - NJ
+
+LCR_lmNJ <- glm(avg_viol_CBG ~ MINORPCT + PRE1960PCT + LOWINCPCT, data = Lead_viol_NJ, family = negative.binomial(theta = 1.5))
+summary(LCR_lmNJ)
 
 #tract-level : NJ
 
@@ -199,7 +211,6 @@ tmap_mode("view")
 tm_shape(Lead_viol_NJ) +
   tm_polygons(col = "AVG_viol_CBG", midpoint = 0) +
   tm_basemap("Esri.WorldTopoMap")
-
 
 
 
