@@ -1,0 +1,691 @@
+################################################################################
+# Service Boundary to Census Block Group Demo
+# Program by: Wes Austin and Will Wheeler
+################################################################################
+
+
+################################################################################
+# # Description: This program pulls in geographic data on service boundaries, loads 
+# census demographic information at the block group level, and joins the service 
+# boundaries to demographic information for the CBGs within the boundary. With census block groups 
+# joined to water systems, it is then possible to join drinking water quality information. 
+# 
+# The broad objective of these linkage procedures is environmental justice analysis 
+# of drinking water systems. Specifically, we ask how water systems with more potentially 
+# vulnerable populations might be differentially exposed to contaminants in drinking water, 
+# and we provide tools to locate those systems through maps. 
+# 
+# Table of Contents:
+# 1) Load necessary packages. 
+# 2) Apply functions
+# 3) Load census data and tiger shapefiles. 
+# 4) Load geographic shapefiles for water systems. 
+# 5) Load water quality information 
+# 6) Areal apportionment procedure. 
+# 7) Univariate Mapping 
+# 8) Bivariate Mapping 
+# 9) Have fun with the data!
+# 10) Don't forget to save your workspace if necessary. 
+################################################################################
+
+
+################################################################################
+# 1) Load packages
+################################################################################
+
+# Packages - Change this to your local library or comment out if using a universal library 
+myPaths <- .libPaths()
+fig_path <- ('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/output/maps/')
+
+#myPaths <- c(myPaths, 'D:/packages')
+
+install.packages("renv")
+renv::hydrate()
+renv::settings$use.cache(FALSE)
+renv::install("geojson")
+renv::install("remotes")
+renv::snapshot()
+
+list.of.packages <- c("magrittr","cowplot","devtools","haven","sf","tidyverse","mapdata","sp",
+                      "tidycensus","areal","stringr","openxlsx",
+                      "lubridate","leaflet","biscale","mapview","tidyr","stringr","ggplot2")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, repos = "http://cran.rstudio.com/")
+
+lapply(list.of.packages, require, character.only = TRUE)
+
+install.packages("wesanderson")
+library(wesanderson)
+library(hrbrthemes) # for plot themes
+wes_palette(Zissou1, 5, type = c("discrete", "continuous"))
+
+################################################################################
+# 2) Apply functions
+################################################################################
+
+if(!dir.exists(here::here("data"))) {
+  dir.create(here::here("data"))
+}
+
+# Function to drop geometry 
+drop_geom <- function(x)
+{
+  if(inherits(x,"sf"))
+    ret <- x[,setdiff(names(x),attr(x,'sf_column')),drop=T]
+  else
+    ret <- x
+  class(ret) <- 'data.frame'
+  return(ret)
+}  
+
+
+################################################################################
+# 3) Load Census data and Shapefiles
+################################################################################
+
+# Census Access Options and API code 
+options(tigris_use_cache = TRUE)
+census_api_key("b198dc46b551b388307baa5e9a47e32aac0c7842",  overwrite = TRUE, install = TRUE)
+# First time, reload your environment so you can use the key without restarting R.
+#readRenviron("~/.Renviron")
+# You can check it with:
+Sys.getenv("CENSUS_API_KEY")
+
+
+# Specify States
+  # Note: use state abbreviations not state names
+states <- c("NJ")
+
+# Specify Variables of Interest
+  # NOTE : Check variable names or add others with this code:
+  # varlist <- load_variables(2020, "acs5", cache = TRUE)
+  # View(varlist)
+
+census_vars <- c(
+  pop = "B01003_001",
+  white="B03002_003", 
+  black="B02009_001",
+  native="B02010_001", 
+  asian="B02011_001", 
+  pi = "B03002_007",  
+  hispanic="B03002_012",
+  median_income = "B19013_001",
+  home_value ="B25077_001",
+  gini="B19083_001"
+)
+
+# Will's demographic variable names 
+# race_vars <- c(White = "B03002_003", Black = "B03002_004",
+#                Native = "B03002_005", Asian = "B03002_006",
+#                HIPI = "B03002_007", Hispanic = "B03002_012")
+
+census <- get_acs(
+  geography = "tract", 
+  variables = census_vars,
+  state = states, 
+  year = 2020,
+  geometry = TRUE) %>%
+  select(-NAME, -moe)
+
+census_data = census %>%
+  pivot_wider(names_from=variable, values_from=estimate) %>%
+  mutate(tract=substr(GEOID, 1, 11)) %>%
+  mutate(hispanic_pct = (hispanic / pop)*100) %>%
+  mutate(black_pct = (black / pop)*100) %>%
+  mutate(pct_minority = 1 - (white/pop)) %>%
+  mutate(pct_minority = pct_minority *100)
+
+
+# # When conducting analysis over many states, will need to run the following
+# # file name for the stored acs data
+  # acs_file = paste0("acs_data_", year, "_", geography, ".RData")
+# # list of state abbreviations plus DC
+  # states = c(state.abb, "DC")
+# # Import data
+  # data = foreach (i=1:length(states), .combine=rbind,
+  #                 .packages=c("tidycensus", "tidyverse")) %do% {
+  #                   print(paste("starting state:", states[i]))
+  #                   get_acs(geography="tract",
+  #                           state=states[i],
+  #                           variables=census_vars, 
+  #                           year=2020,
+  #                           geometry=True) %>%
+  #                     select(-NAME, -moe)
+  #                 }
+
+# Block-group Level 2021
+EJSCREEN_2021_USPR <- read.csv("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/EJSCREEN/EJSCREEN_2021_USPR.csv") 
+
+ejscreen = EJSCREEN_2021_USPR %>%
+  select(ID, LINGISOPCT , MINORPCT, LOWINCPCT, LESSHSPCT, ST_ABBREV ) %>%
+  rename(GEOID = ID)  %>%
+  dplyr::filter(grepl('IL',ST_ABBREV))
+ejscreen$GEOID <- as.character(ejscreen$GEOID)
+ejscreen = ejscreen %>%
+  mutate(GEOID=str_pad(GEOID, 11, pad="0"))
+
+# Tract  Level 
+ejscreen_tract <- read.csv("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/EJSCREEN/EJSCREEN_2021_USPR_Tracts.csv") 
+
+ejscreen_tract2 = ejscreen_tract %>%
+  select(ID, LINGISOPCT ,ACSTOTPOP , PM25, PRE1960PCT , PTRAF, MINORPCT, LOWINCPCT, LESSHSPCT, ST_ABBREV ) %>%
+  rename(tract = ID)  %>%
+  dplyr::filter(grepl('IL',ST_ABBREV))
+ejscreen_tract2$tract <- as.character(ejscreen_tract2$tract)
+
+
+################################################################################
+# 4) Load geographic shapefiles for water systems. 
+################################################################################
+
+# Load Service Area Boundaries
+  # NOTE: Change to your directory 
+nj_geojson <- read_sf("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/New Jersey/NJ_Service_Areas.geojson")
+
+# Simplify Data to Core Elements
+  # NOTE: May need to change variable names 
+nj_data <- nj_geojson %>%
+  select(PWID, SYS_NAME, geometry) %>%
+  rename(PWSID = PWID)
+
+# Load state map for later use 
+nj <- map_data("state", region = "New Jersey")
+
+# Sanity check: do the service boundaries show up 
+# ggplot() + 
+#   geom_polygon(data = nj,
+#                aes(x=long, y = lat, group = group),
+#                fill = NA, color = "black", size = .25) +
+#   labs(title= "Map of NJ Drinking Water System Boundaries") +
+#   geom_sf(data = nj_data) +
+#   ggthemes::theme_map()
+
+################################################################################
+# 5) Load water quality 
+################################################################################
+
+library(haven)
+clean_nj <- read_dta("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/water quality/clean_nj.dta")  %>%
+  rename(PWSID = pwsid)
+
+
+################################################################################
+# 6) Areal apportionment
+################################################################################
+
+# Transform ACS file and state files to common coordinate system
+# Some coordinate systems do not work with the areal package
+# Note for later: check that the census_data$geometry part of the command worked 
+
+census_data_sf<- st_as_sf(census_data)
+census_data_geo <- st_transform(census_data_sf, crs = 26915) 
+
+# Errors about self-intersecting polygons --  quick fix 
+nj_data_geo <- st_transform(nj_data, crs = 26915) %>%
+  st_buffer(., dist = 0)
+
+# Merge datasets 
+
+nj_data_geo2<- left_join(clean_nj, nj_data_geo, by='PWSID')
+nj_data_geo2<- st_as_sf(nj_data_geo2)
+
+
+
+## Verify key variables true for interpolation
+ar_validate(census_data_geo, nj_data_geo2, 
+            varList = c("pop", "white", "black", "native", "asian", "hispanic", "pi", "median_income"), 
+            verbose = TRUE)
+
+# First: assign CBG info to PWSs. 
+nj_interpolated <- aw_interpolate(nj_data_geo2,
+                                      tid = PWSID,
+                                      source = census_data_geo,
+                                      sid = GEOID,
+                                      weight = "sum",
+                                      output = "sf",
+                                      intensive = c("median_income","home_value"),
+                                      extensive = c("pop", "white", "black", 
+                                                    "native", "asian", "hispanic",
+                                                    "pi"))
+
+sum(is.na(nj_interpolated$pop))
+# 3177 didn't match!
+
+# Clean up variables and re-save in correct format 
+
+nj_interpolated = nj_interpolated %>%
+  mutate(hispanic_pct = (hispanic / pop)*100) %>%
+  mutate(black_pct = (black / pop)*100) %>%
+  mutate(pct_minority = 1 - (white/pop)) %>%
+  mutate(pct_minority = pct_minority *100) %>%
+  st_as_sf(nj_interpolated)
+
+
+
+# Next: Assign PWS info to CBGs 
+
+nj_cbg_interpolated <- aw_interpolate(census_data_geo,
+                                  tid = GEOID,
+                                  source = nj_data_geo2,
+                                  sid = PWSID,
+                                  weight = "sum",
+                                  output = "sf",
+                                  intensive = c("arsenic", "chromium", "lead",
+                                                "mercury", "nitrate", "thallium", 
+                                                "haa5", "tthm", "v_chloride", "xylene","cont_index"))
+
+sum(is.na(nj_cbg_interpolated$arsenic))
+#1161 CBGs have no info 
+
+
+# MErge to EJSCREEN Information 
+nj_cbg_interpolated2<- left_join(nj_cbg_interpolated, ejscreen_tract2, by='tract')
+
+sum(nj_cbg_interpolated2$LINGISOPCT)
+
+nj_cbg_interpolated2 <- nj_cbg_interpolated2 %>%
+  mutate(nitrate = nitrate / 1000)
+
+################################################################################
+# 7) Univariate Maps of Demographics and Water Quality 
+################################################################################
+
+
+
+plot(nj_interpolated$geometry, axes=T, main='New Jersey Service Zones') 
+mapview(nj_interpolated)
+
+
+
+# Map 1: Population & Percent Minority across Water Systems 
+
+pal <- colorNumeric(palette = "viridis", 
+                    domain = nj_interpolated$pop,
+                    na.color = 'whitesmoke' )
+
+nj_interpolated %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>%
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(popup = ~ str_extract(PWSID, "^([^,]*)"),
+              stroke = FALSE,
+              smoothFactor = 0,
+              fillOpacity = 0.7,
+              color = ~ pal(pop)) %>%
+  addLegend("bottomright", 
+            pal = pal, 
+            values = ~ pop,
+            title = "Population",
+            opacity = 1)
+
+# Map 2: Water Quality across CBGs - Arsenic  
+
+pal <- colorNumeric(palette = "viridis", 
+                    domain = nj_cbg_interpolated$arsenic,
+                    na.color = 'whitesmoke' )
+
+nj_cbg_interpolated %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>%
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(popup = ~ str_extract(GEOID, "^([^,]*)"),
+              stroke = FALSE,
+              smoothFactor = 0,
+              fillOpacity = 0.7,
+              color = ~ pal(arsenic)) %>%
+  addLegend("bottomright", 
+            pal = pal, 
+            values = ~ arsenic,
+            title = "Arsenic (ug/l)",
+            opacity = 1)
+
+# Map 3: Water Quality across CBGs - TTHM  
+
+pal <- colorNumeric(palette = "viridis", 
+                    domain = nj_cbg_interpolated$tthm,
+                    na.color = 'whitesmoke' )
+
+nj_cbg_interpolated %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>%
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(popup = ~ str_extract(GEOID, "^([^,]*)"),
+              stroke = FALSE,
+              smoothFactor = 0,
+              fillOpacity = 0.7,
+              color = ~ pal(tthm)) %>%
+  addLegend("bottomright", 
+            pal = pal, 
+            values = ~ tthm,
+            title = "TTHM (ug/l)",
+            opacity = 1)
+
+
+ggplot(nj_cbg_interpolated, aes(fill = tthm, color = tthm) ) + 
+  geom_sf() +
+  scale_fill_viridis_c() + 
+  scale_color_viridis_c(guide = FALSE) + 
+  theme_minimal() + 
+  labs(title = "New Jersey - TTHM by Census Block Group",
+       caption = "",
+       fill = "TTHM (ug/l)")
+#Data source: 2015-2019 ACS.\nData acquired with the R tidycensus package.
+
+
+# Map 4: Water Quality across CBGs - Nitrates  
+nj_cbg_interpolated <- nj_cbg_interpolated %>%
+  mutate(nitrate = nitrate /1000)
+
+pal <- colorNumeric(palette = "viridis", 
+                    domain = nj_cbg_interpolated$nitrate,
+                    na.color = 'whitesmoke' )
+
+nj_cbg_interpolated %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>%
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(popup = ~ str_extract(GEOID, "^([^,]*)"),
+              stroke = FALSE,
+              smoothFactor = 0,
+              fillOpacity = 0.7,
+              color = ~ pal(nitrate)) %>%
+  addLegend("bottomright", 
+            pal = pal, 
+            values = ~ nitrate,
+            title = "Nitrates (mg/l)",
+            opacity = 1)
+png("output/maps/nj_nitrate.png", width=500, height=417)
+
+# Map 5: Water Quality across CBGs - Lead  
+nj_cbg_interpolated$lead[nj_cbg_interpolated$lead >16] <- NA
+
+pal <- colorNumeric(palette = "viridis", 
+                    domain = nj_cbg_interpolated$lead,
+                    na.color = 'whitesmoke' )
+
+nj_cbg_interpolated %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>%
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(popup = ~ str_extract(GEOID, "^([^,]*)"),
+              stroke = FALSE,
+              smoothFactor = 0,
+              fillOpacity = 0.7,
+              color = ~ pal(lead)) %>%
+  addLegend("bottomright", 
+            pal = pal, 
+            values = ~ lead,
+            title = "Lead (ug/l)",
+            opacity = 1)
+png("output/maps/nj_lead.png", width=500, height=417)
+
+
+# Map 6: Water Quality across CBGs - Haloacetic Acids   
+
+pal <- colorNumeric(palette = "viridis", 
+                    domain = nj_cbg_interpolated$haa5,
+                    na.color = 'whitesmoke' )
+
+nj_cbg_interpolated %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>%
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(popup = ~ str_extract(GEOID, "^([^,]*)"),
+              stroke = FALSE,
+              smoothFactor = 0,
+              fillOpacity = 0.7,
+              color = ~ pal(haa5)) %>%
+  addLegend("bottomright", 
+            pal = pal, 
+            values = ~ haa5,
+            title = "Haa5 (ug/l)",
+            opacity = 1)
+png("output/maps/nj_haa5.png", width=500, height=417)
+
+
+# Map 7: Contaminant Index  
+
+pal <- colorNumeric(palette = "viridis", 
+                    domain = nj_cbg_interpolated$cont_index,
+                    na.color = 'whitesmoke' )
+
+nj_cbg_interpolated %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>%
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(popup = ~ str_extract(GEOID, "^([^,]*)"),
+              stroke = FALSE,
+              smoothFactor = 0,
+              fillOpacity = 0.7,
+              color = ~ pal(cont_index)) %>%
+  addLegend("bottomright", 
+            pal = pal, 
+            values = ~ cont_index,
+            title = "Contaminant Index",
+            opacity = 1)
+
+#save as PDF
+pdf(file = paste0(fig_path, 'nj_contindex.pdf'),
+    width = 11, height =8.5)
+
+ggplot(nj_cbg_interpolated, aes(fill = cont_index, color = cont_index) ) + 
+  geom_sf() +
+  scale_fill_viridis_c() + 
+  scale_color_viridis_c(guide = FALSE) + 
+  theme_minimal() + 
+  labs(title = "",
+       caption = "",
+       fill = "Contaminant Index") +
+  theme(legend.text=element_text(size=rel(1)))
+
+dev.off()
+
+# water system level 
+pal <- colorNumeric(palette = "viridis", 
+                    domain = nj_interpolated$haa5,
+                    na.color = 'whitesmoke' )
+nj_interpolated<- st_as_sf(nj_interpolated)
+nj_interpolated <- nj_interpolated[!is.na(nj_interpolated@data$geometry),]
+
+
+nj_interpolated %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>%
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(popup = ~ str_extract(PWSID, "^([^,]*)"),
+              stroke = FALSE,
+              smoothFactor = 0,
+              fillOpacity = 0.7,
+              color = ~ pal(haa5)) %>%
+  addLegend("bottomright", 
+            pal = pal, 
+            values = ~ haa5,
+            title = "Haa5 (ug/l)",
+            opacity = 1)
+
+
+################################################################################
+# 8) Bivariate Maps of Demographics and Water Quality  
+################################################################################
+
+# Lead 
+data_biscale <- bi_class(nj_cbg_interpolated, x = lead, y = pct_minority, style = "quantile", dim = 3) %>%
+  filter(!str_detect(bi_class, 'NA'))
+# Noting there are missing values in the x and y fields, hence the extra %>% step
+
+# Map 1 - Lead and Percent Minority  
+map <- ggplot(data_biscale) +
+  geom_sf(data = data_biscale, 
+  mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "DkBlue", dim = 3) +
+  labs(
+    title = "Lead and Percent Minority",
+    subtitle = "",
+    size = 2
+  ) +
+  bi_theme()
+
+legend <- bi_legend(pal = "DkBlue",
+                    dim = 3,
+                    xlab = "Lead",
+                    ylab = "% Minority",
+                    size = 8)
+
+finalPlot <- ggdraw() +
+  draw_plot(map, 0, 0, 1, 1) +
+  draw_plot(legend, 0.4, .08, 0.7, 0.3)
+# The third number is the x axis location, apparently at 1 it's too large.
+# The second number seems to relate to the y axis, .8 is too high
+# The first number also seems to relate to the x axis location
+# The last number makes the plot larger 
+finalPlot
+
+
+
+# TTHM 
+data_biscale <- bi_class(nj_cbg_interpolated, x = tthm, y = pct_minority, style = "quantile", dim = 3) %>%
+  filter(!str_detect(bi_class, 'NA'))
+# Noting there are missing values in the x and y fields, hence the extra %>% step
+
+# Map 1 - Lead and Percent Minority  
+map <- ggplot(data_biscale) +
+  geom_sf(data = data_biscale, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "DkBlue", dim = 3) +
+  labs(
+    title = "TTHM and Percent Minority",
+    subtitle = "",
+    size = 2
+  ) +
+  bi_theme()
+
+legend <- bi_legend(pal = "DkBlue",
+                    dim = 3,
+                    xlab = "TTHM",
+                    ylab = "% Minority",
+                    size = 8)
+
+finalPlot <- ggdraw() +
+  draw_plot(map, 0, 0, 1, 1) +
+  draw_plot(legend, 0.4, .08, 0.7, 0.3)
+# The third number is the x axis location, apparently at 1 it's too large.
+# The second number seems to relate to the y axis, .8 is too high
+# The first number also seems to relate to the x axis location
+# The last number makes the plot larger 
+finalPlot
+
+# Bivariate Contaminant Index Maps - 1 Pct Minority 
+
+fig_path <- ('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/output/maps/')
+data_biscale <- bi_class(nj_cbg_interpolated2, x = cont_index, y = pct_minority, style = "quantile", dim = 3) %>%
+  filter(!str_detect(bi_class, 'NA'))
+
+map <- ggplot(data_biscale) +
+  geom_sf(data = data_biscale, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "DkBlue", dim = 3) +
+  labs(
+    title = "Contaminant Index and Percent Minority",
+    subtitle = "",
+    size = 2
+  ) +
+  bi_theme()
+
+legend <- bi_legend(pal = "DkBlue",
+                    dim = 3,
+                    xlab = "Contaminant Index",
+                    ylab = "Pct. Minority",
+                    size = 10)
+#save as PDF
+pdf(file = paste0(fig_path, 'biv_cont_pctmin.pdf'),
+    width = 11, height =8.5)
+
+cowplot::ggdraw() +
+  draw_plot(map, 0, 0, 1, 1) +
+  draw_plot(legend, 0.4, .01, 0.99, 0.2)
+# The third number is the x axis location, apparently at 1 it's too large.
+# The second number seems to relate to the y axis, .8 is too high
+# The first number also seems to relate to the x axis location
+# The last number makes the plot larger 
+dev.off()
+
+# Bivariate Contaminant Index Maps - 2 Pct Low Income 
+data_biscale <- bi_class(nj_cbg_interpolated2, x = cont_index, y = LOWINCPCT, style = "quantile", dim = 3) %>%
+  filter(!str_detect(bi_class, 'NA'))
+
+map <- ggplot(data_biscale) +
+  geom_sf(data = data_biscale, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "DkBlue", dim = 3) +
+  labs(
+    title = "Contaminant Index and Percent Low Income",
+    subtitle = "",
+    size = 2
+  ) +
+  bi_theme()
+
+legend <- bi_legend(pal = "DkBlue",
+                    dim = 3,
+                    xlab = "Contaminant Index",
+                    ylab = "Pct. Low Income",
+                    size = 10)
+#save as PDF
+pdf(file = paste0(fig_path, 'biv_cont_lowinc.pdf'),
+    width = 11, height =8.5)
+
+cowplot::ggdraw() +
+  draw_plot(map, 0, 0, 1, 1) +
+  draw_plot(legend, 0.4, .01, 0.99, 0.2)
+# The third number is the x axis location, apparently at 1 it's too large.
+# The second number seems to relate to the y axis, .8 is too high
+# The first number also seems to relate to the x axis location
+# The last number makes the plot larger 
+dev.off()
+
+
+################################################################################
+# Generate interesting tables of comparisons 
+################################################################################
+
+weighted.mean
+data_biscale1 <- data_biscale %>%
+  group_by(bi_class) %>%
+  summarize(avg_lowinc = weighted.mean(MINORPCT, pop, na.rm=TRUE), 
+            avg_pctmin = weighted.mean(LOWINCPCT, pop, na.rm=TRUE),
+            avg_lingiso = weighted.mean(LINGISOPCT, pop, na.rm=TRUE),
+            avg_pm25 = weighted.mean(PM25, pop, na.rm=TRUE),
+            avg_pre60 = weighted.mean(PRE1960PCT, pop, na.rm=TRUE),
+            avg_traf = weighted.mean(PTRAF, pop, na.rm=TRUE)
+  )
+
+sum2 <- ejscreen_tract2 %>%
+  summarize(avg_lowinc = weighted.mean(MINORPCT, ACSTOTPOP, na.rm=TRUE), 
+            avg_pctmin = weighted.mean(LOWINCPCT, ACSTOTPOP, na.rm=TRUE),
+            avg_lingiso = weighted.mean(LINGISOPCT, ACSTOTPOP, na.rm=TRUE),
+            avg_pm25 = weighted.mean(PM25, ACSTOTPOP, na.rm=TRUE),
+            avg_pre60 = weighted.mean(PRE1960PCT, ACSTOTPOP, na.rm=TRUE),
+            avg_traf = weighted.mean(PTRAF, ACSTOTPOP, na.rm=TRUE)
+  )
+
+sum3 <- EJSCREEN_2021_USPR %>%
+  summarize(avg_lowinc = weighted.mean(MINORPCT, ACSTOTPOP, na.rm=TRUE), 
+            avg_pctmin = weighted.mean(LOWINCPCT, ACSTOTPOP, na.rm=TRUE),
+            avg_lingiso = weighted.mean(LINGISOPCT, ACSTOTPOP, na.rm=TRUE),
+            avg_pm25 = weighted.mean(PM25, ACSTOTPOP, na.rm=TRUE),
+            avg_pre60 = weighted.mean(PRE1960PCT, ACSTOTPOP, na.rm=TRUE),
+            avg_traf = weighted.mean(PTRAF, ACSTOTPOP, na.rm=TRUE)
+  )
+
+################################################################################
+# Last step-- Have a nice day! 
+################################################################################
+
+
+# And maybe save your work environment if you want to pick it up later:
+save.image("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/nj_data_environment.RData")
+
+# Or just the final file for the state you're interested in:
+saveRDS(nj_cbg_interpolated, file = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/geofiles/nj_sf_data.Rdata")
+
+#saveRDS(il_cbg_interpolated2, file = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/il_sf_data.Rdata")
+st_write(tx_cbg_interpolated2, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/geofiles/tx_cbg_interpolated.shp",  delete_layer = TRUE)
+st_write(il_cbg_interpolated2, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/geofiles/il_cbg_interpolated.shp",  delete_layer = TRUE)
+st_write(nm_cbg_interpolated2, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/geofiles/nm_cbg_interpolated.shp",  delete_layer = TRUE)
+st_write(nj_cbg_interpolated, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/geofiles/nj_cbg_interpolated.shp",  delete_layer = TRUE)
