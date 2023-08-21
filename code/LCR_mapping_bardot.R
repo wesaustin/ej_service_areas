@@ -20,9 +20,6 @@ pacman::p_load(
   tmap, # for map creation
   modelsummary, # regression table generation
   future.apply, # parallel computation
-  cdlTools, # download CDL data
-  rgdal, # required for cdlTools
-  prism, # download PRISM data
   stringr, # string manipulation
   magrittr,
   tidycensus,
@@ -58,37 +55,43 @@ Lead_violations$total_violations[is.na(Lead_violations$total_violations)] <- 0
 
 Lead_violations$Maximum_sample_exceedence[is.na(Lead_violations$Maximum_sample_exceedence)] <- 0
 
+##########################################################################################
+##########################################################################################
 
 ##For tract with more than one PWSID, find average number of violations at the CBG level
-##then collapse to include only 1 observation per CBG
-
-##Here I keep only the calculated avg. number of violations per tract, the max exceedence, when the sample 
-##was taken, and the relevant IDs numbers
-
-###Then, collapse to the census tract level (11-digit "ID") 
+##then collapse to include only 1 observation per census tract level (12-digit "ID") 
 
 Lead_violations <- Lead_violations %>%
   group_by(ID) %>%
-  mutate(avg_viol_CBG = mean(total_violations)) %>%
+  mutate(avg_viol_CBG = mean(total_violations)) %>% #average violations per CBG
   distinct(ID, .keep_all = TRUE) 
 
+##Some of the leading zeros for some states may have been lopped off, so add them back in
 
-##make a subset for testing, create tract-level unit of analysis
+Lead_violations$ID <- 
+  ifelse(nchar(Lead_violations$ID) < 12, paste0("0", Lead_violations$ID), Lead_violations$ID)
 
-Lead_viol_AL <- Lead_violations %>%
-  filter(ST_ABBREV == "AL") %>%
+Lead_violations <- Lead_violations %>%
+  ungroup() %>%
   mutate(tract = substring(ID, first=1, last=11)) %>%
   group_by(tract) %>%
-  mutate(AVG_tract_viol = mean(total_violations)) 
+  mutate(AVG_tract_viol = mean(total_violations)) #average violations per tract
 
+glimpse(Lead_violations) ##check that the columns look okay
+
+##########################################################################################
+##########################################################################################
+
+##make a subset for testing
+
+Lead_viol_AL <- Lead_violations %>%
+  filter(ST_ABBREV == "AL") 
 
 ##Grab AL block group boundaries
 
 AL_bg <- tigris::block_groups("AL") %>%
-  mutate(ID = substring(GEOID, first=2, last=12)) %>%
+  rename(ID = GEOID) %>%
   st_transform(crs = 4326) 
-
-AL_bg$ID <- as.numeric(AL_bg$ID)
 
 ##We actually only have tract-level data for AL? It appears that there is a number (0)
 ##missing from the CBG ID, which is why I had to substring in order to match the polygons
@@ -109,8 +112,8 @@ st_as_sf(Lead_viol_AL)
 
 Lead_plot_AL <- ggplot() + 
   geom_sf(data = Lead_viol_AL, aes(fill = avg_viol_CBG, geometry = geometry)) +
-  scale_fill_viridis_c(option="plasma", na.value = "white") +
-  geom_sf(data = AL_bg, fill = NA) +
+  scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
+  geom_sf(data = AL_bg, fill = NA, colour = "#00800033", size= 0.05) + ##check border size
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
@@ -118,41 +121,14 @@ Lead_plot_AL
 
 ##SUCCESS!!
 
-##NJ : CBG
+
+##Now by tract level :NJ
 
 Lead_viol_NJ <- Lead_violations %>%
-  filter(ST_ABBREV == "NJ") %>%
-  mutate(tract = substring(ID, first=1, last=11)) %>%
-  group_by(tract) %>%
-  mutate(AVG_tract_viol = mean(total_violations))
-
-NJ_bg <- tigris::block_groups("NJ") %>%
-  mutate(ID = GEOID) %>%
-  st_transform(crs = 4326)
-
-NJ_bg$ID <- as.numeric(NJ_bg$ID)
-
-Lead_viol_NJ <- left_join(NJ_bg, Lead_viol_NJ)
-
-##Convert to SF for mapping
-
-st_as_sf(Lead_viol_NJ) 
-
-##Plot it!
-
-Lead_plot_NJ <- ggplot() + 
-  geom_sf(data = Lead_viol_NJ, aes(fill = avg_viol_CBG, geometry = geometry)) +
-  scale_fill_viridis_c(option="plasma", na.value = "white") +
-  geom_sf(data = NJ_bg, fill = NA) +
-  ggthemes::theme_map() + 
-  theme(legend.position = "right")
-
-Lead_plot_NJ
-
-##Now by tract level 
+  filter(ST_ABBREV == "NJ")
 
 NJ_tract <- tigris::tracts("NJ") %>%
-  mutate(tract = GEOID) %>%
+  rename(tract = GEOID) %>%
   st_transform(crs = 4326)
 
 Lead_viol_NJ <- left_join(NJ_tract, Lead_viol_NJ)
@@ -161,23 +137,70 @@ st_as_sf(Lead_viol_NJ)
 
 Lead_plot_NJ <- ggplot() + 
   geom_sf(data = Lead_viol_NJ, aes(fill = AVG_tract_viol, geometry = geometry)) +
-  scale_fill_viridis_c(option="plasma", na.value = "white") +
-  geom_sf(data = NJ_tract, fill = NA) +
+  scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
+  geom_sf(data = NJ_tract, fill = NA, colour = "#00800033", size= 0.05) + ##check border size
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
 Lead_plot_NJ
 
-
 ##Success! A map with different census tracts showing the average number of LCR
 ##violations per tract
+
+##Now, at the county level
+
+WA_counties <- tigris::counties("WA") %>%
+  rename(county = GEOID) %>%
+  st_transform(crs = 4326)
+
+Lead_viol_WA <- Lead_violations %>%
+  filter(ST_ABBREV == "WA") %>%
+  mutate(county = substring(ID, first=1, last=5)) 
+
+Lead_viol_WA <- left_join(WA_counties, Lead_viol_WA)
+
+st_as_sf(Lead_viol_WA)
+
+Lead_viol_WA <- Lead_viol_WA %>%
+  group_by(county) %>%
+  mutate(avg_county_viol = mean(total_violations)) 
+
+Lead_plot_WA <- ggplot() + 
+  geom_sf(data = Lead_viol_WA, aes(fill = avg_county_viol, geometry = geometry)) +
+  scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
+  geom_sf(data = WA_counties, fill = NA, colour = "#00800033", size= 0.05) + ##check border size
+  ggthemes::theme_map() + 
+  theme(legend.position = "right")
+
+Lead_plot_WA
+
+##########################################################################################
+##########################################################################################
+
+summary(Lead_violations[c("avg_viol_CBG", "MINORPCT", "PRE1960PCT", "LOWINCPCT")])
+
+##Model the relationship between the number of violations and EJ indicators
+
+#CBG-level : NJ
+
+LCR_lm <- lm(avg_viol_CBG ~ MINORPCT + PRE1960PCT + LOWINCPCT, data = Lead_violations)
+
+summary(LCR_lm)
+
+#tract-level : NJ
+
+LCR_lm_tr <- lm(AVG_tract_viol ~ MINORPCT + PRE1960PCT + LOWINCPCT, data = Lead_viol_NJ)
+summary(LCR_lm_tr)
 
 
 ##Interactive map (similar to leaflet)
 
 tmap_mode("view")
-tm_shape(LCR_viol_CA) +
-  tm_polygons(col = "AVG_CBG_viol", midpoint = 0) +
+tm_shape(Lead_viol_NJ) +
+  tm_polygons(col = "AVG_viol_CBG", midpoint = 0) +
   tm_basemap("Esri.WorldTopoMap")
+
+
+
 
 
