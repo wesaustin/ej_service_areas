@@ -114,7 +114,7 @@ st_as_sf(Lead_viol_AL)
 Lead_plot_AL <- ggplot() + 
   geom_sf(data = Lead_viol_AL, aes(fill = avg_viol_CBG, geometry = geometry)) +
   scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = AL_bg, fill = NA, colour = "#00800033", size= 0.05) + ##check border size
+  geom_sf(data = AL_bg, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
@@ -141,7 +141,7 @@ st_as_sf(Lead_viol_NJ)
 Lead_plot_NJ <- ggplot() + 
   geom_sf(data = Lead_viol_NJ, aes(fill = AVG_tract_viol, geometry = geometry)) +
   scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = NJ_tract, fill = NA, colour = "#00800033", size= 0.05) + ##check border size
+  geom_sf(data = NJ_tract, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
@@ -173,7 +173,7 @@ Lead_viol_WA <- Lead_viol_WA %>%
 Lead_plot_WA <- ggplot() + 
   geom_sf(data = Lead_viol_WA, aes(fill = avg_county_viol, geometry = geometry)) +
   scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = WA_counties, fill = NA, colour = "#00800033", size= 0.05) + ##check border size
+  geom_sf(data = WA_counties, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
