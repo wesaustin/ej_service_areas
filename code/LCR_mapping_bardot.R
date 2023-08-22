@@ -112,15 +112,17 @@ st_as_sf(Lead_viol_AL)
 ###Plot using ggplot2
 
 Lead_plot_AL <- ggplot() + 
-  geom_sf(data = Lead_viol_AL, aes(fill = avg_viol_CBG, geometry = geometry)) +
-  scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = AL_bg, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
+  geom_sf(data = Lead_viol_AL, aes(fill = avg_viol_CBG, geometry = geometry), color = NA) +
+  scale_fill_distiller(palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = AL_bg, fill = NA, colour = NA, size= 0.05) + 
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
 Lead_plot_AL
 
-ggsave(filename = 'Alabama_LCR_CBG_viol.pdf', path = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/output")
+plot_path <- "Plots"
+
+ggsave(filename = 'Alabama_LCR_CBG_viol.png', path = plot_path)
 
 ##SUCCESS!!
 
@@ -139,15 +141,15 @@ Lead_viol_NJ <- left_join(NJ_tract, Lead_viol_NJ)
 st_as_sf(Lead_viol_NJ) 
 
 Lead_plot_NJ <- ggplot() + 
-  geom_sf(data = Lead_viol_NJ, aes(fill = AVG_tract_viol, geometry = geometry)) +
-  scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = NJ_tract, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
+  geom_sf(data = Lead_viol_NJ, aes(fill = AVG_tract_viol, geometry = geometry), color = NA) +
+  scale_fill_distiller(palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = NJ_tract, fill = NA, colour = NA, size= 0.05) + 
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
 Lead_plot_NJ
 
-ggsave(filename = 'NJ_tract_LCR_violations.pdf', path = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/output")
+ggsave(filename = 'NJ_tract_LCR_violations.png', path = plot_path)
 
 ##Success! A map with different census tracts showing the average number of LCR
 ##violations per tract
@@ -171,15 +173,15 @@ Lead_viol_WA <- Lead_viol_WA %>%
   mutate(avg_county_viol = mean(total_violations)) 
 
 Lead_plot_WA <- ggplot() + 
-  geom_sf(data = Lead_viol_WA, aes(fill = avg_county_viol, geometry = geometry)) +
-  scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = WA_counties, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
+  geom_sf(data = Lead_viol_WA, aes(fill = avg_county_viol, geometry = geometry), color = NA) +
+  scale_fill_distiller(palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = WA_counties, fill = NA, colour = NA, size= 0.05) + 
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
 Lead_plot_WA
 
-ggsave(filename = 'WA_county_LCR_violations.pdf', path = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/output")
+ggsave(filename = 'WA_county_LCR_violations.png', path = plot_path)
 
 
 ##########################################################################################
@@ -206,7 +208,6 @@ summary(LCR_lm_tr)
 
 
 ##Interactive map (similar to leaflet)
-##Recreating the NJ dataset since this time we are looking at BG and not tracts
 
 Lead_viol_NJ <- Lead_violations %>%
   filter(ST_ABBREV == "NJ")
@@ -219,10 +220,11 @@ Lead_viol_NJ <- left_join(NJ_bg, Lead_viol_NJ)
 
 st_as_sf(Lead_viol_NJ)
 
-tmap_mode("view") #this mode can be changed if you want to export the map, use mode "plot"
+tmap_mode("view")
 tm_shape(Lead_viol_NJ) +
-  tm_polygons(col = "avg_viol_CBG", alpha = 0.5, midpoint = 0) + #change the alpha for transparency
+  tm_polygons(col = "avg_viol_CBG", alpha = 0.5, midpoint = 0) +
   tm_basemap("Esri.WorldTopoMap")
+
 
 
 

@@ -20,11 +20,13 @@ pacman::p_load(
   tmap, # for map creation
   modelsummary, # regression table generation
   future.apply, # parallel computation
+  cdlTools, # download CDL data
+  rgdal, # required for cdlTools
+  prism, # download PRISM data
   stringr, # string manipulation
   magrittr,
   tidycensus,
-  mapview,
-  MASS
+  mapview
 )
 
 
@@ -68,13 +70,13 @@ health_violations <- health_violations %>%
 health_violations$ID <- 
   ifelse(nchar(health_violations$ID) < 12, paste0("0", health_violations$ID), health_violations$ID)
 
-Health_violations <- Health_violations %>%
+health_violations <- health_violations %>%
   ungroup() %>%
   mutate(tract = substring(ID, first=1, last=11)) %>%
   group_by(tract) %>%
   mutate(AVG_tract_viol = mean(total_violations)) #average violations per tract
 
-glimpse(Health_violations) ##check that the columns look okay
+glimpse(health_violations) ##check that the columns look okay
 
 
 ##make a subset for testing, create tract-level unit of analysis
@@ -105,9 +107,9 @@ st_as_sf(health_viol_AL)
 ###Plot using ggplot2
 
 health_plot_AL <- ggplot() + 
-  geom_sf(data = health_viol_AL, aes(fill = avg_viol_CBG, geometry = geometry)) +
-  scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = AL_bg, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
+  geom_sf(data = health_viol_AL, aes(fill = avg_viol_CBG, geometry = geometry), color = NA) +
+  scale_fill_distiller(palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = AL_bg, fill = NA, colour = NA, size= 0.05) + 
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
@@ -115,7 +117,9 @@ health_plot_AL
 
 ##SUCCESS!!
 
-ggsave(filename = 'AL_health_CBG.pdf', path = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/output")
+plot_path <- "Plots"
+
+ggsave(filename = 'AL_health_CBG.png', path = plot_path)
 
 
 ##NJ : Tract level
@@ -132,17 +136,18 @@ health_viol_NJ <- left_join(NJ_tract, health_viol_NJ)
 st_as_sf(health_viol_NJ) 
 
 health_plot_NJ <- ggplot() + 
-  geom_sf(data = health_viol_NJ, aes(fill = avg_viol_CBG, geometry = geometry)) +
-  scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = NJ_tract, fill = NA, colour = "#00800013", size= 0.05) + ##check border size  ggthemes::theme_map() + 
+  geom_sf(data = health_viol_NJ, aes(fill = AVG_tract_viol, geometry = geometry), color = NA) +
+  scale_fill_distiller(palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = NJ_tract, fill = NA, colour = NA, size= 0.05) + 
+  ggthemes::theme_map() + 
   theme(legend.position = "right")
 
 health_plot_NJ
 
-ggsave(filename = 'NJ_health_tract.pdf', path = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/output")
+ggsave(filename = 'NJ_health_tract.png', path = plot_path)
 
 
-##Success! A map with different census tracts showing the average number of LCR
+##Success! A map with different census tracts showing the average number of health
 ##violations per tract
 
 WA_counties <- tigris::counties("WA") %>%
@@ -162,15 +167,15 @@ health_viol_WA <- health_viol_WA %>%
   mutate(avg_county_viol = mean(total_violations)) 
 
 health_plot_WA <- ggplot() + 
-  geom_sf(data = health_viol_WA, aes(fill = avg_county_viol, geometry = geometry)) +
-  scale_fill_distiller(palette = "YlGn", direction = 1, na.value = "transparent") +
-  geom_sf(data = WA_counties, fill = NA, colour = "#00800013", size= 0.05) + ##check border size
+  geom_sf(data = health_viol_WA, aes(fill = avg_county_viol, geometry = geometry), color = NA) +
+  scale_fill_distiller(palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = WA_counties, fill = NA, colour = NA, size= 0.05) + 
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
 health_plot_WA
 
-ggsave(filename = 'WA_health_county.pdf', path = "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/output")
+ggsave(filename = 'WA_health_county.png', path = plot_path)
 
 
 ##########################################################################################
@@ -191,19 +196,64 @@ summary(m1 <- glm.nb(avg_viol_CBG ~ MINORPCT + PRE1960PCT + LOWINCPCT, data = he
 
 ##Interactive map (similar to leaflet)
 
+tmap_mode("view")
+tm_shape(health_viol_NJ) +
+  tm_polygons(col = "avg_viol_CBG", alpha = 0.5, midpoint = 0) +
+  tm_basemap("Esri.WorldTopoMap")
+
+##Plotting at different levels for the same state
+
+##BG
 
 health_viol_NJ <- health_violations %>%
   filter(ST_ABBREV == "NJ")
 
 NJ_bg <- tigris::block_groups("NJ") %>%
-  rename(tract = GEOID) %>%
+  rename(ID = GEOID) %>%
   st_transform(crs = 4326)
 
 health_viol_NJ <- left_join(NJ_bg, health_viol_NJ)
 
-st_as_sf(Lead_viol_NJ)
+st_as_sf(health_viol_NJ)
 
-tmap_mode("view")
-tm_shape(health_viol_NJ) +
-  tm_polygons(col = "avg_viol_CBG", alpha = 0.5, midpoint = 0) +
-  tm_basemap("Esri.WorldTopoMap")
+health_plot_NJ <- ggplot() + 
+  geom_sf(data = health_viol_NJ, aes(fill = avg_viol_CBG, geometry = geometry), color = NA) +
+  scale_fill_distiller(palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = NJ_bg, fill = NA, colour = NA, size= 0.05) + 
+  ggthemes::theme_map() + 
+  theme(legend.position = "right")
+
+health_plot_NJ
+
+ggsave(filename = 'NJ_health_cbg.png', path = plot_path)
+
+
+##County
+
+health_viol_NJ <- health_violations %>%
+  filter(ST_ABBREV == "NJ") %>%
+  mutate(county = substring(ID, first=1, last=5)) 
+  
+NJ_counties <- tigris::counties("NJ") %>%
+  rename(county = GEOID) %>%
+  st_transform(crs = 4326)
+
+health_viol_NJ <- health_viol_NJ %>%
+  group_by(county) %>%
+  mutate(avg_county_viol = mean(total_violations))
+
+health_viol_NJ <- left_join(NJ_counties, health_viol_NJ)
+
+st_as_sf(health_viol_NJ)
+
+health_plot_NJ <- ggplot() + 
+  geom_sf(data = health_viol_NJ, aes(fill = avg_county_viol, geometry = geometry), color = NA) +
+  scale_fill_distiller(palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = NJ_counties, fill = NA, colour = NA, size= 0.05) + 
+  ggthemes::theme_map() + 
+  theme(legend.position = "right")
+
+health_plot_NJ
+
+ggsave(filename = 'NJ_health_counties.png', path = plot_path)
+
