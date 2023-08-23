@@ -36,6 +36,11 @@ sb <- st_read("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)
 sb_sf <-  sb %>%
   st_as_sf(sf_column_name=geom, crs=4326)
 
+sb_sf$state <- substr(sb_sf$PWSID,1,2)
+sb_sf <- !(sb_sf$state %in% c("GU","MP","VI","AS"))
+table(sb_sf$state)
+unique(sb_sf[,'state'])
+
 # Rename geom to geometry so that the EJfunction doesn't trip 
 sb_sf <- st_set_geometry(sb_sf, "geometry") 
 
@@ -54,7 +59,7 @@ mapview(sb_sf)
 
 zipcodes <- EJfunction(LOI_data = sb_sf,
                        data_year = 2021, 
-                       buffer = 0,
+                       buffer = 0.0001,
                        raster = T)
 
 # Rename the output for convenience 

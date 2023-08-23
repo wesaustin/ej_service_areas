@@ -1,0 +1,83 @@
+# SCRIPT TO GENERATE BIVARIATE MAPS USING ACTION LEVELS
+# using Wes' Texas script, modified by Peiley
+# created: April 19, 2022 
+
+# LOAD LIBRARIES
+library(tidyverse)
+library(mapview)
+library(sf)
+library(biscale)
+library(ggplot2)
+library(cowplot)
+
+source('code/biscale_fn_action_level.R')
+tx_fig_path <- ('Texas/figures/')
+
+# LOAD SF DATASET
+tx_cbg_interpolated2 <- st_read('Data/geofiles/tx_cbg_interpolated.shp') %>%
+  rename(hispanic_pct = hspnc_p,
+         pct_minority = pct_mnr)
+
+#B) CREATE BISCALE MAP
+    #1. create general biscale output
+    # data_biscale <- biscale::bi_class(tx_cbg_interpolated2,
+    #                                    x = nitrate, y = hispanic_pct, 
+    #                                    style = "quantile", dim = 3) %>%
+    #   filter(!str_detect(bi_class, 'NA'))
+    #2. create biscale output with action level thresholds
+    #define the action level. currently, the function takes two numbers for the action_vector, can be modified
+    action_vector <- c(5, 10)
+    
+    data_biscale_al <- bi_class_al(tx_cbg_interpolated2,
+                             x = nitrate, y = hispanic_pct,
+                             style = "quantile", dim = 3,
+                             action_level = T, action_vector = action_vector) %>%
+    filter(!str_detect(bi_class, 'NA'))
+    
+    map <- ggplot(data_biscale_al) +
+      geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
+      bi_scale_fill(pal = "DkBlue", dim = 3) +
+      labs(
+        title = "Nitrates and Percent Hispanic",
+        subtitle = "",
+        size = 2
+      ) +
+      bi_theme()
+    
+    legend <- bi_legend(pal = "DkBlue",
+                        dim = 3,
+                        xlab = "Nitrates",
+                        ylab = "% Hispanic",
+                        size = 8)
+    #save as PDF
+    pdf(file = paste0(tx_fig_path, 'biv_nitrate_hispanic.pdf'),
+        width = 11, height =8.5)
+    
+    cowplot::ggdraw() +
+      draw_plot(map, 0, 0, 1, 1) +
+      draw_plot(legend, 0.4, .08, 0.9, 0.3)
+    # The third number is the x axis location, apparently at 1 it's too large.
+    # The second number seems to relate to the y axis, .8 is too high
+    # The first number also seems to relate to the x axis location
+    # The last number makes the plot larger 
+    
+    dev.off()
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

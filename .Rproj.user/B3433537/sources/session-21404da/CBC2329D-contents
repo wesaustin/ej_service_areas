@@ -8,11 +8,11 @@
 
 # requires devtools to install
 
-install.packages('devtools')
+#install.packages('devtools')
 library(devtools)
 
 # install from repository
-install_github('USEPA/EJSCREENbatch', build_vignettes=FALSE)
+#install_github('USEPA/EJSCREENbatch', build_vignettes=FALSE)
 library(EJSCREENbatch)
 
 # Other libraries
@@ -37,7 +37,19 @@ sb_sf <-  sb %>%
   st_as_sf(sf_column_name=geom, crs=4326)
 
 sb_sf$state <- substr(sb_sf$PWSID,1,2)
-sb_sf <- !(state %in% c("GU","MP","VI","AS"))
+
+# Tabulate states
+sb_sf %>%
+  group_by(state) %>%
+  summarise(n = n()) %>%
+  mutate(
+    totalN = (cumsum(n)),
+    percent = round((n / sum(n)), 3),
+    cumuPer = round(cumsum(freq = n / sum(n)), 3)) %>%
+  print(n = 100)
+
+
+sb_sf <- !(sb_sf$state %in% c("GU","MP","VI","AS"))
 table(sb_sf$state)
 unique(sb_sf[,'state'])
 
