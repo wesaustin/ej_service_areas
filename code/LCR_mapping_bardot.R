@@ -57,8 +57,10 @@ pwsid_cbg <- read.csv("Data/sb_dems_area_v3.csv")
 
 ##Left join the full PWSID dataset with the lead content violations data
 
-LCR_vio_cbg <- left_join(pwsid_cbg, LCR_vio_cbg, by = "PWSID", relationship = "many-to-many")  %>%
+LCR_vio_cbg <- left_join(pwsid_cbg, lcr_vio, by = "PWSID", relationship = "many-to-many")  %>%
   mutate(ID=str_pad(ID, 12, pad="0"))
+
+rm(lcr_vio, pwsid_cbg)
 
 ##For tracts with PWSIDs, and null values for the number of violations, replace nulls 
 ##with zeros
@@ -80,14 +82,14 @@ LCR_vio_cbg <- LCR_vio_cbg %>%
 
 ## make a subset for testing, create tract-level unit of analysis
 
-Lead_vio_AL <- LCR_vio_cbg %>%  #make sure to rerun if changing unit of spatial analysis
+LCR_vio_AL <- LCR_vio_cbg %>%  #make sure to rerun if changing unit of spatial analysis
   filter(ST_ABBREV == "AL") %>%
   mutate(tract = substring(ID, first=1, last=11)) %>%
   group_by(tract) %>%
   mutate(avg_vio_tract = sum(total_violations*ACSTOTPOP)/sum(ACSTOTPOP)) 
 
 #New Jersey 
-Lead_vio_NJ <- LCR_vio_cbg %>%
+LCR_vio_NJ <- LCR_vio_cbg %>%
   filter(ST_ABBREV == "NJ") %>%
   mutate(tract = substring(ID, first=1, last=11)) %>%
   group_by(tract) %>%
@@ -98,7 +100,7 @@ Lead_vio_NJ <- LCR_vio_cbg %>%
 ## and Join to LCR data
 ################################################################################
 
-# Alabama
+# Alabama : block group level
 
 AL_bg <- tigris::block_groups("AL") %>%
   st_transform(crs = 4326)  %>%
@@ -111,24 +113,20 @@ AL_tract <- tigris::tracts("AL") %>%
 st_crs(AL_bg)
 st_crs(Al_tract)
 
-Lead_vio_AL <- left_join(AL_tract, Lead_vio_AL) ##Join by CBG
+LCR_vio_AL <- left_join(AL_tract, LCR_vio_AL) ##Join by CBG
 
-st_as_sf(Lead_vio_AL) ##Convert to spatial object
+st_as_sf(LCR_vio_AL) ##Convert to spatial object
 
 
-# New Jersey
+# New Jersey : tract level 
 
 NJ_tract <- tigris::tracts("NJ") %>%
   rename(tract = GEOID) %>%
   st_transform(crs = 4326)
 
-NJ_tract <- tigris::block_groups("NJ") %>%
-  rename(ID = GEOID) %>%
-  st_transform(crs = 4326)
+LCR_vio_NJ <- left_join(NJ_tract, LCR_vio_NJ)
 
-Lead_vio_NJ <- left_join(NJ_tract, Lead_vio_NJ)
-
-st_as_sf(Lead_vio_NJ) 
+st_as_sf(LCR_vio_NJ) 
 
 
 ################################################################################
@@ -138,14 +136,13 @@ st_as_sf(Lead_vio_NJ)
 # Map 1 - Alabama GGPLOT
 ###Plot using ggplot2
 
-
-Lead_plot_AL <- ggplot() + 
-  geom_sf(data = Lead_vio_AL, aes(fill = avg_vio_CBG, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average violations per CBG", palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+LCR_plot_AL <- ggplot() + 
+  geom_sf(data = LCR_vio_AL, aes(fill = avg_vio_CBG, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "Average violations per CBG", palette = "Purples", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
-Lead_plot_AL
+LCR_plot_AL
 
 plot_path <- "Plots"
 
@@ -156,15 +153,13 @@ ggsave(filename = 'Alabama_LCR_CBG_vio.png', path = plot_path)
 
 ##Now by tract level :NJ
 
-
-
-Lead_plot_NJ <- ggplot() + 
-  geom_sf(data = Lead_vio_NJ, aes(fill = avg_vio_tract, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average violations per tract", palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+LCR_plot_NJ <- ggplot() + 
+  geom_sf(data = LCR_vio_NJ, aes(fill = avg_vio_tract, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "Average violations per tract", palette = "Purples", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
   ggthemes::theme_map() + 
-  theme(legend.position = "right")
+  theme(legend.title = element_text(size = 8), legend.position = "right", legend.box.background = element_blank())
 
-Lead_plot_NJ
+LCR_plot_NJ
 
 ggsave(filename = 'NJ_tract_LCR_violations.png', path = plot_path)
 
@@ -182,13 +177,12 @@ summary(LCR_vio_cbg[c("avg_vio_CBG", "MINORPCT", "PRE1960PCT", "LOWINCPCT")])
 
 #CBG-level - National
 
-LCR_lm <- glm.nb(avg_vio_CBG ~ MINORPCT + PRE1960PCT + LOWINCPCT, data = LCR_vio_cbg)
-summary(LCR_lm)
+summary(LCR_lm <- glm.nb(avg_vio_CBG ~ MINORPCT + PRE1960PCT + LOWINCPCT + STATE_NAME, data = LCR_vio_cbg))
 
 
 ##CBG level in subset - NJ
 
-LCR_lmNJ <- glm.nb(avg_vio_CBG ~ MINORPCT + PRE1960PCT + LOWINCPCT, data = Lead_vio_NJ)
+LCR_lmNJ <- glm.nb(avg_vio_CBG ~ MINORPCT + PRE1960PCT + LOWINCPCT, data = LCR_vio_NJ)
 summary(LCR_lmNJ)
 
 
@@ -198,15 +192,15 @@ summary(LCR_lmNJ)
 
 ##Interactive map (similar to leaflet)
 
-Lead_vio_NJ <- LCR_vio_cbg %>%
+LCR_vio_NJ <- LCR_vio_cbg %>%
   filter(ST_ABBREV == "NJ")
 
-Lead_vio_NJ <- left_join(NJ_bg, Lead_vio_NJ)
+LCR_vio_NJ <- left_join(NJ_bg, LCR_vio_NJ)
 
-st_as_sf(Lead_vio_NJ)
+st_as_sf(LCR_vio_NJ)
 
 tmap_mode("view")
-tm_shape(Lead_vio_NJ) +
+tm_shape(LCR_vio_NJ) +
   tm_polygons(col = "avg_vio_CBG", alpha = 0.5, midpoint = 0) +
   tm_basemap("Esri.WorldTopoMap")
 
@@ -217,23 +211,23 @@ WA_counties <- tigris::counties("WA") %>%
   rename(county = GEOID) %>%
   st_transform(crs = 4326)
 
-Lead_vio_WA <- LCR_vio_cbg %>%
+LCR_vio_WA <- LCR_vio_cbg %>%
   filter(ST_ABBREV == "WA") %>%
   mutate(county = substring(ID, first=1, last=5))  %>%
   group_by(county) %>%
   mutate(avg_county_vio = sum(total_violations*ACSTOTPOP)/sum(ACSTOTPOP))
 
-Lead_vio_WA <- left_join(WA_counties, Lead_vio_WA)
+LCR_vio_WA <- left_join(WA_counties, LCR_vio_WA)
 
-st_as_sf(Lead_vio_WA)
+st_as_sf(LCR_vio_WA)
 
-Lead_plot_WA <- ggplot() + 
-  geom_sf(data = Lead_vio_WA, aes(fill = avg_county_vio, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average violations per county", palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
+LCR_plot_WA <- ggplot() + 
+  geom_sf(data = LCR_vio_WA, aes(fill = avg_county_vio, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "Average violations per county", palette = "Purples", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
   ggthemes::theme_map() + 
   theme(legend.position = "right")
 
-Lead_plot_WA
+LCR_plot_WA
 
 ggsave(filename = 'WA_county_LCR_violations.png', path = plot_path)
 
