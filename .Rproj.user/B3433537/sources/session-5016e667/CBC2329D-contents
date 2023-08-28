@@ -69,10 +69,16 @@ mapview(sb_sf)
 # Remove missing geometries - Necessary for function to run. 
 # sb_sf_narm <- sb_sf[!is.na(st_geometry(sb_sf)),]
 
-zipcodes <- EJfunction(LOI_data = sb_sf,
+# zipcodes <- EJfunction(LOI_data = sb_sf,
+#                        data_year = 2021, 
+#                        buffer = 0.0001,
+#                        raster = T)
+
+zc_data <- EJfunction(LOI_data = zipcodeboundaries,
                        data_year = 2021, 
                        buffer = 0.0001,
                        raster = T)
+
 
 # Rename the output for convenience 
 

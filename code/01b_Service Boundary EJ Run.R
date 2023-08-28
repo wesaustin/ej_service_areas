@@ -8,11 +8,11 @@
 
 # requires devtools to install
 
-install.packages('devtools')
+#install.packages('devtools')
 library(devtools)
 
 # install from repository
-install_github('USEPA/EJSCREENbatch', build_vignettes=FALSE)
+#install_github('USEPA/EJSCREENbatch', build_vignettes=FALSE)
 library(EJSCREENbatch)
 
 # Other libraries
@@ -37,6 +37,18 @@ sb_sf <-  sb %>%
   st_as_sf(sf_column_name=geom, crs=4326)
 
 sb_sf$state <- substr(sb_sf$PWSID,1,2)
+
+# Tabulate states
+sb_sf %>%
+  group_by(state) %>%
+  summarise(n = n()) %>%
+  mutate(
+    totalN = (cumsum(n)),
+    percent = round((n / sum(n)), 3),
+    cumuPer = round(cumsum(freq = n / sum(n)), 3)) %>%
+  print(n = 100)
+
+
 sb_sf <- !(sb_sf$state %in% c("GU","MP","VI","AS"))
 table(sb_sf$state)
 unique(sb_sf[,'state'])
@@ -57,10 +69,16 @@ mapview(sb_sf)
 # Remove missing geometries - Necessary for function to run. 
 # sb_sf_narm <- sb_sf[!is.na(st_geometry(sb_sf)),]
 
-zipcodes <- EJfunction(LOI_data = sb_sf,
+# zipcodes <- EJfunction(LOI_data = sb_sf,
+#                        data_year = 2021, 
+#                        buffer = 0.0001,
+#                        raster = T)
+
+zc_data <- EJfunction(LOI_data = zipcodeboundaries,
                        data_year = 2021, 
                        buffer = 0.0001,
                        raster = T)
+
 
 # Rename the output for convenience 
 
