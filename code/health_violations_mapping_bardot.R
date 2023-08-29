@@ -224,17 +224,17 @@ US_counties <- tigris::counties() %>%
 HB_vio_all <- cbg_HB_vio %>%
   mutate(county = substring(ID, first=1, last=5)) %>%
   group_by(county) %>%
-  mutate(avg_county_viol = sum(total_violations*ACSTOTPOP)/sum(ACSTOTPOP))
+  mutate(avg_vio_county = sum(total_violations*ACSTOTPOP)/sum(ACSTOTPOP))
 
 HB_vio_all <- left_join(US_counties, HB_vio_all)
 
 st_as_sf(HB_vio_all)
 
 ggplot() + 
-  geom_sf(data = HB_vio_all, aes(fill = avg_county_viol, geometry = geometry), color = NA) +
+  geom_sf(data = HB_vio_all, aes(fill = avg_vio_county, geometry = geometry), color = NA) +
   scale_fill_distiller(name = "Average violations per county", palette = "Greens", direction = 1, na.value = scales::alpha("#DCDCDC", 0.5)) +
   ggthemes::theme_map() + 
   theme(legend.key.size = unit(0.5, 'cm'), legend.title = element_text(size = 8), legend.position = "right", legend.box.background = element_blank())
 
-ggsave(filename = 'healt_vio_counties_USA.png', path = plot_path)
+ggsave(filename = 'HB_vio_counties_USA.png', path = plot_path)
 
