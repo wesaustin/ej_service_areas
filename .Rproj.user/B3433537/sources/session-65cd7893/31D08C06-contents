@@ -89,10 +89,18 @@ save(SDWA_violations, file = "C:/Users/gaustin/OneDrive - Environmental Protecti
 
 
 
+# Part 3 : SYR 3 & 4 DBP Indicators 
 
+load("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/mdi/syr/syr3.RData")
 
+dbp3 <- 
 
+load("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/mdi/syr/syr4.RData")
 
+dbp4 <- 
+
+  
+  
 ################################################################################
 # Map the two indicators 
 ################################################################################
