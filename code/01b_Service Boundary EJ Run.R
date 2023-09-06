@@ -30,7 +30,7 @@ lapply(list.of.packages, library, character.only = TRUE)
 ###############################################################################
 
 
-sb <- st_read("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ZIP_Codes_Served/Dissolved_ZIP_Codes_Served.shp")
+sb <- st_read("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ZIP_Codes_Served/UCMR_3_5/generated_boundaries_using_zip_codes.shp")
 
 # Convert projection
 sb_sf <-  sb %>%

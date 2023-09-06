@@ -78,6 +78,13 @@ zipcodeboundaries <- st_read("C:/Users/gaustin/OneDrive - Environmental Protecti
 st_write(zipcodeboundaries, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ZIP_Codes_Served/UCMR_3_5/generated_boundaries_using_zip_codes.shp")
 
 
+
+
+################################################################################
+# Done saving file, rest of code is optional. 
+# Have a great day!
+################################################################################
+
 leaflet() %>%
   setView(-101,35, zoom=3) %>%
   addTiles %>%
