@@ -21,7 +21,8 @@ pacman::p_load(
   magrittr,
   tidycensus, #Census data
   MASS , #For regressions and modeling
-  dplyr
+  dplyr,
+  readxl
 )
 
 
@@ -30,7 +31,7 @@ pacman::p_load(
 ################################################################################
 
 #Tina
-#my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
+my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
 
 #WA
 my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
@@ -56,9 +57,9 @@ HB_vio <- readRDS("data/HB_vio_combined.rds")
 ## Relative risk of POC and non-hispanic whites
 
 HB_vio <- HB_vio %>%
-  mutate(WHITEPCT = (1-MINORPCT)) %>%
-  mutate(pop_poc = MINORPCT*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_nhw = WHITEPCT*population_served_count , na.rm = TRUE  )  %>%
+  mutate(whitepct = (1-minorpct)) %>%
+  mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_poc = sum(pop_poc, na.rm = TRUE) )  %>%
   mutate(sum_pop_nhw = sum(pop_nhw, na.rm = TRUE) ) %>%
   mutate(num_poc = pop_poc*total_violations, na.rm = TRUE ) %>%
@@ -81,7 +82,6 @@ rel_risk_race <- HB_vio$poc_risk / HB_vio$nhw_risk
 rel_risk_race
 # 1.028
 
-
 ################################################################################
 ## Data manipulation: Income indicator
 ################################################################################
@@ -90,8 +90,8 @@ rel_risk_race
 
 HB_vio <- HB_vio %>%
   mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*population_served_count , na.rm = TRUE  )  %>%
+  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*total_violations, na.rm = TRUE ) %>%
@@ -132,9 +132,9 @@ LCR_vio <- read_rds("data/lcr_vio_combined.rds")
 ## Relative risk of POC and non-hispanic whites
 
 LCR_vio <- LCR_vio %>%
-  mutate(WHITEPCT = (1-MINORPCT)) %>%
-  mutate(pop_poc = MINORPCT*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_nhw = WHITEPCT*population_served_count , na.rm = TRUE  )  %>%
+  mutate(whitepct = (1-minorpct)) %>%
+  mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_poc = sum(pop_poc, na.rm = TRUE) )  %>%
   mutate(sum_pop_nhw = sum(pop_nhw, na.rm = TRUE) ) %>%
   mutate(num_poc = pop_poc*total_violations, na.rm = TRUE ) %>%
@@ -161,8 +161,8 @@ rel_risk_race
 
 LCR_vio <- LCR_vio %>%
   mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*population_served_count , na.rm = TRUE  )  %>%
+  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*total_violations, na.rm = TRUE ) %>%
@@ -202,9 +202,9 @@ pfas_vio <- read_rds("data/pfas_vio_combined.rds")
 # Note switching to the binary detection variable instead of the total_violations one
 
 pfas_vio <- pfas_vio %>%
-  mutate(WHITEPCT = (1-MINORPCT)) %>%
-  mutate(pop_poc = MINORPCT*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_nhw = WHITEPCT*population_served_count , na.rm = TRUE  )  %>%
+  mutate(whitepct = (1-minorpct)) %>%
+  mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_poc = sum(pop_poc, na.rm = TRUE) )  %>%
   mutate(sum_pop_nhw = sum(pop_nhw, na.rm = TRUE) ) %>%
   mutate(num_poc = pop_poc*detection, na.rm = TRUE ) %>%
@@ -233,8 +233,8 @@ rel_risk_race
 
 pfas_vio <- pfas_vio %>%
   mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*population_served_count , na.rm = TRUE  )  %>%
+  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*detection, na.rm = TRUE ) %>%
@@ -276,9 +276,9 @@ dbp_vio <- read_rds("data/dbp_vio_combined.rds")
 # Note switching to the continuous variable combined_dbp instead of the total_violations one
 
 dbp_vio <- dbp_vio %>%
-  mutate(WHITEPCT = (1-MINORPCT)) %>%
-  mutate(pop_poc = MINORPCT*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_nhw = WHITEPCT*population_served_count , na.rm = TRUE  )  %>%
+  mutate(whitepct = (1-minorpct)) %>%
+  mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_poc = sum(pop_poc, na.rm = TRUE) )  %>%
   mutate(sum_pop_nhw = sum(pop_nhw, na.rm = TRUE) ) %>%
   mutate(num_poc = pop_poc*combined_dbp, na.rm = TRUE ) %>%
@@ -307,8 +307,8 @@ rel_risk_race
 
 dbp_vio <- dbp_vio %>%
   mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*population_served_count , na.rm = TRUE  )  %>%
+  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*combined_dbp, na.rm = TRUE ) %>%
@@ -343,9 +343,6 @@ rm(dbp_vio)
 
 tcr_vio <- read_rds("data/tcr_vio_combined.rds")
 
-################################################################################
-## Data manipulation : Race indicator
-################################################################################
 
 ################################################################################
 ## Data manipulation : Race indicator
@@ -354,9 +351,9 @@ tcr_vio <- read_rds("data/tcr_vio_combined.rds")
 # Note switching to the continuous variable detection_share instead of the total_violations one
 
 tcr_vio <- tcr_vio %>%
-  mutate(WHITEPCT = (1-MINORPCT)) %>%
-  mutate(pop_poc = MINORPCT*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_nhw = WHITEPCT*population_served_count , na.rm = TRUE  )  %>%
+  mutate(whitepct = (1-minorpct)) %>%
+  mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_poc = sum(pop_poc, na.rm = TRUE) )  %>%
   mutate(sum_pop_nhw = sum(pop_nhw, na.rm = TRUE) ) %>%
   mutate(num_poc = pop_poc*detection_share, na.rm = TRUE ) %>%
@@ -385,8 +382,8 @@ rel_risk_race
 
 tcr_vio <- tcr_vio %>%
   mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*population_served_count, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*population_served_count , na.rm = TRUE  )  %>%
+  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*detection_share, na.rm = TRUE ) %>%
