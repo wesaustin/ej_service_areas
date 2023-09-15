@@ -54,9 +54,12 @@ HB_vio <- readRDS("data/HB_vio_combined.rds")
 ## Data manipulation : Race indicator
 ################################################################################
 
-## Relative risk of POC and non-hispanic whites
+## Relative risk of POC and non-Hispanic whites (nhw)
+
+summary(HB_vio$pop_served)
 
 HB_vio <- HB_vio %>%
+  filter(pop_served != 0)%>% #remove systems with no pop served
   mutate(whitepct = (1-minorpct)) %>%
   mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
   mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
@@ -80,7 +83,7 @@ HB_vio$nhw_risk
 # Generate Relative Risk 
 rel_risk_race <- HB_vio$poc_risk / HB_vio$nhw_risk
 rel_risk_race
-# 1.028
+# 1.029
 
 ################################################################################
 ## Data manipulation: Income indicator
@@ -89,9 +92,10 @@ rel_risk_race
 # Same procedure as above 
 
 HB_vio <- HB_vio %>%
-  mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
+  filter(pop_served != 0)%>%
+  mutate(highinc = (1-lowinc)) %>%
+  mutate(pop_li = lowinc*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = highinc*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*total_violations, na.rm = TRUE ) %>%
@@ -120,10 +124,10 @@ rm(HB_vio)
 
 ################################################################################
 ## Load Data 
-## LCR violations 
+## lcr violations 
 ################################################################################
 
-LCR_vio <- read_rds("data/lcr_vio_combined.rds")
+lcr_vio <- read_rds("data/lcr_vio_combined.rds")
 
 ################################################################################
 ## Data manipulation : Race indicator
@@ -131,7 +135,8 @@ LCR_vio <- read_rds("data/lcr_vio_combined.rds")
 
 ## Relative risk of POC and non-hispanic whites
 
-LCR_vio <- LCR_vio %>%
+lcr_vio <- lcr_vio %>%
+  filter(pop_served != 0) %>%
   mutate(whitepct = (1-minorpct)) %>%
   mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
   mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
@@ -143,26 +148,27 @@ LCR_vio <- LCR_vio %>%
   mutate(sum_risk_nhw = sum(num_nhw, na.rm = TRUE)) 
 
 # Demographic risk Indicator  
-LCR_vio$poc_risk <- LCR_vio$sum_risk_poc / LCR_vio$sum_pop_poc
-LCR_vio$nhw_risk <- LCR_vio$sum_risk_nhw / LCR_vio$sum_pop_nhw
+lcr_vio$poc_risk <- lcr_vio$sum_risk_poc / lcr_vio$sum_pop_poc
+lcr_vio$nhw_risk <- lcr_vio$sum_risk_nhw / lcr_vio$sum_pop_nhw
 
-LCR_vio$poc_risk
+lcr_vio$poc_risk
 # 0.994
 
-LCR_vio$nhw_risk
+lcr_vio$nhw_risk
 # 1.04
 
 # Generate Relative Risk 
-rel_risk_race <- LCR_vio$poc_risk / LCR_vio$nhw_risk
+rel_risk_race <- lcr_vio$poc_risk / lcr_vio$nhw_risk
 rel_risk_race
 # 0.95
 
 ## Relative risk of individuals above or below 2X the poverty limit
 
-LCR_vio <- LCR_vio %>%
-  mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
+lcr_vio <- lcr_vio %>%
+  filter(pop_served != 0) %>%
+  mutate(highinc = (1-lowinc)) %>%
+  mutate(pop_li = lowinc*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = highinc*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*total_violations, na.rm = TRUE ) %>%
@@ -171,22 +177,22 @@ LCR_vio <- LCR_vio %>%
   mutate(sum_risk_hi = sum(num_hi, na.rm = TRUE)) 
 
 # Demographic risk Indicator  
-LCR_vio$li_risk <- LCR_vio$sum_risk_li / LCR_vio$sum_pop_li
-LCR_vio$hi_risk <- LCR_vio$sum_risk_hi / LCR_vio$sum_pop_hi
+lcr_vio$li_risk <- lcr_vio$sum_risk_li / lcr_vio$sum_pop_li
+lcr_vio$hi_risk <- lcr_vio$sum_risk_hi / lcr_vio$sum_pop_hi
 
-LCR_vio$li_risk
+lcr_vio$li_risk
 # 0.969
 
-LCR_vio$hi_risk
+lcr_vio$hi_risk
 # 1.05
 
 # Generate Relative Risk 
-rel_risk_inc <- LCR_vio$li_risk / LCR_vio$hi_risk
+rel_risk_inc <- lcr_vio$li_risk / lcr_vio$hi_risk
 rel_risk_inc
 # 0.926
 
 # Clear memory
-rm(LCR_vio)
+rm(lcr_vio)
 
 ################################################################################
 ## Load Data 
@@ -202,6 +208,7 @@ pfas_vio <- read_rds("data/pfas_vio_combined.rds")
 # Note switching to the binary detection variable instead of the total_violations one
 
 pfas_vio <- pfas_vio %>%
+  filter(pop_served != 0) %>%
   mutate(whitepct = (1-minorpct)) %>%
   mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
   mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
@@ -225,16 +232,16 @@ pfas_vio$nhw_risk
 # Generate Relative Risk 
 rel_risk_race <- pfas_vio$poc_risk / pfas_vio$nhw_risk
 rel_risk_race
-# 1.38
-
+# 1.39
 
 
 ## Relative risk of individuals above or below 2X the poverty limit
 
 pfas_vio <- pfas_vio %>%
-  mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
+  filter(pop_served != 0) %>%
+  mutate(highinc = (1-lowinc)) %>%
+  mutate(pop_li = lowinc*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = highinc*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*detection, na.rm = TRUE ) %>%
@@ -255,7 +262,7 @@ pfas_vio$hi_risk
 # Generate Relative Risk 
 rel_risk_inc <- pfas_vio$li_risk / pfas_vio$hi_risk
 rel_risk_inc
-# 0.982
+# 0.983
 
 
 # Clear memory
@@ -276,6 +283,7 @@ dbp_vio <- read_rds("data/dbp_vio_combined.rds")
 # Note switching to the continuous variable combined_dbp instead of the total_violations one
 
 dbp_vio <- dbp_vio %>%
+  filter(pop_served != 0) %>%
   mutate(whitepct = (1-minorpct)) %>%
   mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
   mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
@@ -306,9 +314,9 @@ rel_risk_race
 ## Relative risk of individuals above or below 2X the poverty limit
 
 dbp_vio <- dbp_vio %>%
-  mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
+  mutate(highinc = (1-lowinc)) %>%
+  mutate(pop_li = lowinc*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = highinc*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*combined_dbp, na.rm = TRUE ) %>%
@@ -351,6 +359,7 @@ tcr_vio <- read_rds("data/tcr_vio_combined.rds")
 # Note switching to the continuous variable detection_share instead of the total_violations one
 
 tcr_vio <- tcr_vio %>%
+  filter(pop_served != 0) %>%
   mutate(whitepct = (1-minorpct)) %>%
   mutate(pop_poc = minorpct*pop_served, na.rm = TRUE )   %>%
   mutate(pop_nhw = whitepct*pop_served , na.rm = TRUE  )  %>%
@@ -374,16 +383,16 @@ tcr_vio$nhw_risk
 # Generate Relative Risk 
 rel_risk_race <- tcr_vio$poc_risk / tcr_vio$nhw_risk
 rel_risk_race
-# 0.9996
+# 0.9997
 
 
 
 ## Relative risk of individuals above or below 2X the poverty limit
 
 tcr_vio <- tcr_vio %>%
-  mutate(HIGHINC = (1-LOWINC)) %>%
-  mutate(pop_li = LOWINC*pop_served, na.rm = TRUE )   %>%
-  mutate(pop_hi = HIGHINC*pop_served , na.rm = TRUE  )  %>%
+  mutate(highinc = (1-lowinc)) %>%
+  mutate(pop_li = lowinc*pop_served, na.rm = TRUE )   %>%
+  mutate(pop_hi = highinc*pop_served , na.rm = TRUE  )  %>%
   mutate(sum_pop_li = sum(pop_li, na.rm = TRUE) )  %>%
   mutate(sum_pop_hi = sum(pop_hi, na.rm = TRUE) ) %>%
   mutate(num_li = pop_li*detection_share, na.rm = TRUE ) %>%
