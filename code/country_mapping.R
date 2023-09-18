@@ -63,7 +63,7 @@ plot_path <- "Plots"
 
 #Create an index for all US states
 
-fips.states <- unique(fips_codes$state)[1:51]
+fips.states <- unique(fips_codes$state)[1:51] 
 
 state_borders <- tigris::states(cb = FALSE, resolution = '20m') %>%
   filter(!STUSPS %in% c('HI', 'AK', 'PR', 'GU', 'VI', 'AS', 'MP')) %>% 
@@ -104,15 +104,15 @@ summary(HB_vio_all$avg_vio_cbg)
 
 ggplot() + 
   geom_sf(data = HB_vio_all, aes(fill = avg_vio_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average violations per CBG", palette = "Greens", direction = 1, limits=c(0,50), breaks = c(0,50), labels = c(0,">50"), na.value = scales::alpha("#DCDCDC", 0.5)) +
+  scale_fill_distiller(name = "Average violations\nper CBG", palette = "Greens", direction = 1, limits=c(0,50), breaks = c(0,50), labels = c(0,">50"), na.value = scales::alpha("#DCDCDC", 0.5)) +
   ggthemes::theme_map() + 
-  theme(legend.key.size = unit(0.5, 'cm'), legend.title = element_text(size = 8), legend.position = "right", legend.box.background = element_blank()) 
+  theme(legend.key.size = unit(0.5, 'cm'),legend.text = element_text(family = "serif"), legend.title = element_text(family = "serif", size = 8), legend.position = "right", legend.box.background = element_blank()) 
 
 
 ggsave(filename = 'HB_vio_cbg_US.png', path = plot_path,
-       scale = 1,
-       width = 15,
-       height = 10,
+       scale = 1.5,
+       width = 7,
+       height = 5,
        units = "in",
        dpi = 300,
        limitsize = FALSE)
@@ -141,15 +141,15 @@ st_as_sf(lcr_vio_all) #set as spatial object
 
 ggplot() + 
   geom_sf(data = lcr_vio_all, aes(fill = avg_vio_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average violations per CBG", palette = "RdPu", direction = 1, limits=c(0,5), breaks = c(0,5), labels = c(0,">5"), na.value = scales::alpha("#DCDCDC", 0.5)) +
+  scale_fill_distiller(name = "Average violations\nper CBG", palette = "RdPu", direction = 1, limits=c(0,5), breaks = c(0,5), labels = c(0,">5"), na.value = scales::alpha("#DCDCDC", 0.5)) +
   ggthemes::theme_map() + 
-  theme(legend.key.size = unit(0.5, 'cm'), legend.title = element_text(size = 8), legend.position = "right", legend.box.background = element_blank()) 
+  theme(legend.key.size = unit(0.5, 'cm'), legend.text = element_text(family = "serif"), legend.title = element_text(family = "serif", size = 8), legend.position = "right", legend.box.background = element_blank()) 
 
 
 ggsave(filename = 'lcr_vio_cbg_US_5.png', path = plot_path,
-       scale = 1,
-       width = 15,
-       height = 10,
+       scale = 1.5,
+       width = 7,
+       height = 5,
        units = "in",
        dpi = 300,
        limitsize = FALSE)
@@ -176,21 +176,21 @@ summary(pfas_vio_all$avg_conc_cbg)
 
 st_as_sf(pfas_vio_all) #set as spatial object
 
-# Map 2 : LCR violations
+# Map 3 : PFAS violations
 
 ggplot() + 
   geom_sf(data = pfas_vio_all, aes(fill = pfas_count_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Number of PFAS detected\nin sampled CBGs", palette = "Reds", 
-                       direction = 1, limits=c(0,5), breaks = c(0,5), labels = c(0,">5"), 
+  scale_fill_distiller(name = "Violation Detections", palette = "Reds", 
+                       direction = 1, limits=c(0,1), breaks = c(0,1), labels = c(0,">1"), 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   ggthemes::theme_map() + 
-  theme(legend.key.size = unit(0.5, 'cm'), legend.title = element_text(size = 8), legend.position = "right", legend.box.background = element_blank()) 
+  theme(legend.key.size = unit(0.5, 'cm'), legend.text = element_text(family = "serif"), legend.title = element_text(family = "serif", size = 8), legend.position = "right", legend.box.background = element_blank()) 
 
 
 ggsave(filename = 'pfas_count_cbg_US.png', path = plot_path,
-       scale = 1,
-       width = 15,
-       height = 10,
+       scale = 1.5,
+       width = 7,
+       height = 5,
        units = "in",
        dpi = 300,
        limitsize = FALSE)
@@ -215,20 +215,20 @@ summary(dbp_vio_all$avg_dbp_cbg) #distribution
 
 st_as_sf(dbp_vio_all) #set as spatial object
 
-# Map 2 : LCR violations
+# Map 4 : DBP violations
 
 ggplot() + 
   geom_sf(data = dbp_vio_all, aes(fill = avg_dbp_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average Combined DBP\nconcentration per CBG", palette = "Blues", 
+  scale_fill_distiller(name = "Average combined\nconcentration per CBG", palette = "Blues", 
                        direction = 1, limits=c(0,100), breaks = c(0,100), labels = c(0,">100"), 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   ggthemes::theme_map() + 
-  theme(legend.key.size = unit(0.5, 'cm'), legend.title = element_text(size = 8), legend.position = "right", legend.box.background = element_blank()) 
+  theme(legend.key.size = unit(0.5, 'cm'), legend.text = element_text(family = "serif"), legend.title = element_text(family = "serif", size = 8), legend.position = "right", legend.box.background = element_blank()) 
 
 ggsave(filename = 'dbp_conc_cbg_US.png', path = plot_path,
-       scale = 1,
-       width = 15,
-       height = 10,
+       scale = 1.5,
+       width = 7,
+       height = 5,
        units = "in",
        dpi = 300,
        limitsize = FALSE)
@@ -252,20 +252,20 @@ summary(tcr_vio_all$tcr_det_cbg) #distribution
 
 st_as_sf(tcr_vio_all) #set as spatial object
 
-# Map 2 : LCR violations
+# Map 5 : TCR violations
 
 ggplot() + 
   geom_sf(data = tcr_vio_all, aes(fill = tcr_det_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Coliform concentration\nper CBG", palette = "YlOrRd", 
+  scale_fill_distiller(name = "Average concentration\nper CBG", palette = "YlOrRd", 
                        direction = 1, 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   ggthemes::theme_map() + 
-  theme(legend.key.size = unit(0.5, 'cm'), legend.title = element_text(size = 8), legend.position = "right", legend.box.background = element_blank()) 
+  theme(legend.key.size = unit(0.5, 'cm'), legend.text = element_text(family = "serif"), legend.title = element_text(family = "serif", size = 8), legend.position = "right", legend.box.background = element_blank()) 
 
 ggsave(filename = 'tcr_conc_cbg_US.png', path = plot_path,
-       scale = 1,
-       width = 15,
-       height = 10,
+       scale = 1.5,
+       width = 7,
+       height = 5,
        units = "in",
        dpi = 300,
        limitsize = FALSE)
