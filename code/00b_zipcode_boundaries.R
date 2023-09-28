@@ -3,6 +3,10 @@ library(data.table)
 library(sf)
 library(tidycensus)
 library(leaflet)
+library(janitor) 
+library(writexl)
+library(readxl)
+
 options(tigris_use_cache = TRUE)
  
 
@@ -18,7 +22,7 @@ getwd()
 us_states <- get_acs(
   geography = "state",
   variables = "B01002_001",
-  year = 2019,
+  year = 2020,
   survey = "acs1",
   geometry = TRUE,
   resolution = "20m"
@@ -51,10 +55,17 @@ for(i in 1:length(zip_links)){
   assign(names(zip_links)[i], data.zip)
   unlink(temp)
 }
- 
+
+sdwis <- read.csv("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/sdwis/geographic_areas_v2.csv")  %>% 
+  clean_names()   %>% 
+  filter(!is.na(zip_code_served))  %>% 
+  rename(ZIPCODE = zip_code_served ) %>% 
+  rename(PWSID = pwsid)  %>%
+  select('PWSID', 'ZIPCODE')     
+
  
 #---------------------------Combine ZipCodes------------------------------------
-zipcodes <- list(ucmr3, ucmr4, ucmr5) %>% 
+zipcodes <- list(ucmr3, ucmr4, ucmr5, sdwis) %>% 
   reduce(rbind) %>% 
   mutate(ZIPCODE = str_replace_all(ZIPCODE, "-", ""),
          ZIPCODE_numeric = as.numeric(ZIPCODE)) %>% 
@@ -75,14 +86,89 @@ zipcodeboundaries <- st_read("C:/Users/gaustin/OneDrive - Environmental Protecti
   filter(!is.na(PWSID)) %>%
   group_by(PWSID) %>% 
   summarize(geometry = st_union(geometry))
+
+
 st_write(zipcodeboundaries, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ZIP_Codes_Served/UCMR_3_5/generated_boundaries_using_zip_codes.shp")
+
+
+################################################################################
+# Now Run EJSCREENbatch Modified on the Zipcodes 
+################################################################################
+
+
+zipcodeboundaries<- st_read( "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ZIP_Codes_Served/UCMR_3_5/generated_boundaries_using_zip_codes.shp") %>%
+  st_transform(crs = 4326) %>%
+  dplyr::mutate(state = substr(PWSID,1,2)) %>%
+  sf::st_make_valid() 
+
+###############################################################################
+# EJfunction 
+###############################################################################
+
+# Tabulate states to figure out which to drop 
+zipcodeboundaries <- zipcodeboundaries  %>%
+  dplyr::mutate(state = substr(PWSID,1,2))
+
+zipcodeboundaries %>%
+  group_by(state) %>%
+  summarise(n = n()) %>%
+  mutate(
+    totalN = (cumsum(n)),
+    percent = round((n / sum(n)), 3),
+    cumuPer = round(cumsum(freq = n / sum(n)), 3)) %>%
+  print(n = 100)
+
+zipcodeboundaries <- zipcodeboundaries  %>% 
+  filter(!(state %in% c("GU","MP","VI","AS","PR","AK","HI")))
+zipcodeboundaries <- st_set_geometry(zipcodeboundaries,"geometry")
+
+# Source modified files from EJSCREENbatch
+sapply(list.files('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/pfas_npdwr_ej/2023_analysis/R', full.names=TRUE), source)
+
+# Call modified EJfunction
+batch.output <- EJfunction(LOI_data = zipcodeboundaries, data_year = 2021, buffer = 0, raster = T)
+
+
+# Save Just the zipcode data
+
+zipcode_data <- batch.output$EJ.loi.data$LOI_radius_2021_0mi %>% 
+  st_drop_geometry %>%
+  rename(pwsid = PWSID)  %>%
+  write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems.csv')
+write_xlsx(zipcode_data, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems.xlsx")
+
+
+# Merge County-level Demographic Data back to the Full PWS Dataset and Save Files
+
+county_dems <- read_excel("NCEE - Water System Service Boundaries/data/demographics/county_dems.xlsx")
+county_dems <- read_excel("NCEE - Water System Service Boundaries/data/demographics/county_dems.xlsx")
+
+comb <- anti_join(zipcode_data,  county_dems,  by = 'pwsid' ) 
+%>% 
+  st_drop_geometry
+
+
+# Save output from batch tool
+
+pws_county_dems %>%
+  write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/county_dems.csv')
+write_xlsx(pws_county_dems, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/county_dems.xlsx")
+
+
+
+################################################################################
+# Done saving file, rest of code is optional or left over.
+# Have a great day!
+################################################################################
+
+
 
 
 
 
 ################################################################################
-# Done saving file, rest of code is optional. 
-# Have a great day!
+################################################################################
+################################################################################
 ################################################################################
 
 leaflet() %>%
@@ -90,7 +176,6 @@ leaflet() %>%
   addTiles %>%
   addPolygons(data= zipcodeboundaries,
               popup = ~ PWSID)  
-
 
 
 # for(i in unique(zipcodeboundaries$state_abbv)){
@@ -102,8 +187,6 @@ leaflet() %>%
 #     theme_minimal()
 #   ggsave(paste0("boundary_images/boundaries_",i,"_using_zip_codes.png"))
 # }
-
-
 
 #==============================================================================
 #---------------------------Census Designated Places---------------------------

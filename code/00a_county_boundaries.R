@@ -1,9 +1,8 @@
 ###############################################################################
 # Load Shapefile of Counties Served by PWSIDs 
 # National Center for Environemental Economics 
-# Last edited 8/28/23
+# Last edited 9/18/23
 ###############################################################################
-
 
 
 # Load libraries, directories 
@@ -11,6 +10,9 @@ library(tidyverse)
 library(sf)
 library(leaflet)
 library(tigris)
+library(readxl)
+library(writexl)
+library(janitor) 
 
 #if not in project subfolder, navigate to main folder
 # if(str_detect(getwd(), "ej_service_areas/")){
@@ -22,83 +24,80 @@ library(tigris)
 #if subfolder for County boundaries does not exist, create it
 mainDir <- "data/generated_boundaries/"
 subDir <- "generated_boundaries_county"
-
-
-###############################################################################
-# Get national county shapefile 
-###############################################################################
-
-counties_map <- counties(cb=T, resolution="20m") 
-counties_crs <- st_crs(counties_map)
 getwd()
 
+
 ###############################################################################
-# Open EPIC boundaries and geospatially merge with county boundaries to get crosswalk
+# Get shapefiles and county boundaries 
 ###############################################################################
 
-# sb <- st_read("NCEE - Water System Service Boundaries/epic_boundaries/temm.gpkg") %>% 
-#   dplyr::select(pwsid, pws_name) %>% 
-#   st_transform(counties_crs)
+# National map of counties
+counties_map <- counties(cb=T, resolution="20m") 
+counties_crs <- st_crs(counties_map)
 
+# Service areas linked to counties
+sb_county <- sf::st_read('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/generated_boundaries/county/generated_boundaries_using_county.shp')
+
+###############################################################################
+# Clean county boundaries
+###############################################################################
 
 # Note must use the principal county because in many cases these overlap with multiple counties
   
-  # principal_county_served_gis <-  st_intersection(st_buffer(epic_areas,0), st_buffer(counties_map,0))
-  # principal_county_served_gis$area_county <- st_area(principal_county_served_gis$geo)
+fill.me <- vector(mode = 'list', length = dim(counties_map)[1])
+for (i in 1:dim(counties_map)[1]){
+  fill.me[[i]] <- counties_map %>%
+    dplyr::slice(i) %>%
+    sf::st_transform(crs = 4326)
+  
+  if(i %% 10 == 0){
+    print(paste0('Row ',i,' complete.'))
+  }
+} 
 
-county_boundaries_using_EPIC <- st_read("NCEE - Water System Service Boundaries/epic_boundaries/temm.gpkg") %>% 
-  dplyr::select(pwsid, pws_name) %>% 
-  st_transform(counties_crs) %>% 
-  st_join(counties_map, join=st_intersection) %>% 
-  ungroup %>% 
-  mutate(area_county = st_area(geometry))
-
-# Save as a dataframe  
-
-county_boundaries_using_EPIC_df <- county_boundaries_using_EPIC %>% 
-  st_drop_geometry() %>% 
-  data.frame() %>% 
-  group_by(pwsid) %>% 
-  mutate(max_area = max(area_county)) %>% 
-  ungroup %>% 
-  filter(area_county==max_area)
-
-#use crosswalk to melt county map to PWSID using EPIC boundaries
-counties_map_pwsids <- counties_map %>% 
-  left_join(county_boundaries_using_EPIC_df) %>% 
-  filter(!is.na(pwsid))  %>% 
-  group_by(pwsid, pws_name) %>% 
-  summarize(geometry = st_union(geometry))
-
-st_write(counties_map_pwsids, paste0("data/generated_boundaries/",subDir,"/generated_boundaries_using_county.shp"), update = TRUE)
-
+together <- data.table::rbindlist(fill.me) %>%
+  sf::st_as_sf(., crs = 4326) %>%
+  sf::st_make_valid()
 
 ###############################################################################
-# Simple Visualizations and Data Checks
+# EJfunction 
 ###############################################################################
 
+# Tabulate states
+together %>%
+  group_by(STUSPS) %>%
+  summarise(n = n()) %>%
+  mutate(
+    totalN = (cumsum(n)),
+    percent = round((n / sum(n)), 3),
+    cumuPer = round(cumsum(freq = n / sum(n)), 3)) %>%
+  print(n = 100)
 
-# counties_map_pwsids <- st_read(paste0("Data/generated_boundaries/",subDir,"/generated_boundaries_using_county.shp"))
-# 
-# #visualize all water systems using county boundaries (a bit a mess, hard to see because of overlapping boundaries)
-# leaflet() %>%
-#   setView(-81,35, zoom=6) %>%
-#   addTiles %>%
-#   addPolygons(data= counties_map_pwsids)
+together <- together  %>% 
+  filter(!(STUSPS %in% c("GU","MP","VI","AS","PR","AK","HI")))
+
+# Source modified files from EJSCREENbatch
+sapply(list.files('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/pfas_npdwr_ej/2023_analysis/R', full.names=TRUE), source)
+
+# Call modified EJfunction
+batch.output <- EJfunction(LOI_data = together, data_year = 2021, buffer = 0, raster = T)
+
+###############################################################################
+# Merge County-level Demographic Data back to the Full PWS Dataset and Save Files
+###############################################################################
+
+county_data <- batch.output$EJ.loi.data$LOI_radius_2021_0mi %>% 
+  st_drop_geometry
+pws_county_dems <- left_join(sb_county,  county_data, by = 'GEOID' )  %>% 
+  st_drop_geometry
+  
+
+# Save output from batch tool
+
+pws_county_dems %>%
+    write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/county_dems.csv')
+write_xlsx(pws_county_dems, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/county_dems.xlsx")
 
 
-#visualize difference between EPIC boundary and County Aggregation using Cherokee Water System
-# another good example #ORANGE WATER & SEWER AUTHORITY
 
-subset_epic <- epic_areas[epic_areas$pws_nam=="ORANGE WATER & SEWER AUTHORITY",]
-subset_counties <- counties_map_pwsids[counties_map_pwsids$pws_nam=="ORANGE WATER & SEWER AUTHORITY",]
-popup_id_county <- paste0("<strong>Name: </strong>",
-                   subset_counties$pws_nam)
-popup_id_epic <- paste0("<strong>Name: </strong>",
-                        subset_epic$pws_nam)
-leaflet() %>%
-  setView(-81,35, zoom=6) %>%
-  addTiles %>%
-  addPolygons(data = subset_epic, popup = subset_epic, color="red")  %>%
-  addPolygons(data = subset_counties, popup = subset_counties, color="blue") 
 
