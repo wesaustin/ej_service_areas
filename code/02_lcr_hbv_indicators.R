@@ -42,42 +42,46 @@ getwd()
 
 ## Load LCR data
 
-LCR_samp <- read_csv("C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/R_GIS/SDWA_LCR_SAMPLES.csv")
+LCR_samp <- read_csv("C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems/Data/SDWA raw/SDWA_LCR_SAMPLES.csv")
 
 ## find the samples exceeding 0.015 mg/l lead and group by PWSID
-LCR_exc <- LCR_samp %>%
-  filter(SAMPLE_MEASURE > 0.015) 
+LCR_samp <- LCR_samp %>%
+  mutate(aet_viol = case_when(
+    SAMPLE_MEASURE > 0.15 & CONTAMINANT_CODE == "PB90" ~ "YES", 
+    SAMPLE_MEASURE > 1.3 & CONTAMINANT_CODE == "CU90"  ~ "YES",
+    TRUE ~ "NO"
+  )) %>%
+  filter(aet_viol == "YES")
 
 ## Maybe take a look!
-glimpse(LCR_exc)
+glimpse(LCR_samp)
 
 ## get counts for number of violations by PWSID 
 
-PWSID_LCR_exc <- LCR_exc %>%
+LCR_samp <- LCR_samp %>%
   group_by(PWSID) %>%
   mutate(total_violations = n())
 
-glimpse(PWSID_LCR_exc)
+summary(LCR_samp$total_violations)
 
 ## Now select the max sample measure for each PSWID
-PWSID_LCR_2 <- PWSID_LCR_exc %>%
+LCR_samp <- LCR_samp %>%
   ungroup(PWSID) %>%
   filter(SAMPLE_MEASURE == max(SAMPLE_MEASURE), .by = PWSID) %>%
   distinct(PWSID, .keep_all = TRUE) 
 
-##check that your data looks good, should have 1 of each violating PWSID and a column with total violations
+## check that your data looks good, should have 1 of each violating PWSID and a column with total violations
 
 ## Clean data, keep only the total number of violations per PWSID and the maximum contamination in each
 
-LCR_violations_per_PWSID <- PWSID_LCR_2 %>%
-  select(PWSID, SAMPLE_MEASURE, UNIT_OF_MEASURE, total_violations, SAMPLING_END_DATE) %>%
-  rename(Maximum_sample_exceedence = SAMPLE_MEASURE) %>%
-  rename(Units = UNIT_OF_MEASURE)
+LCR_samp <- LCR_samp %>%
+  dplyr::select(PWSID, SAMPLE_MEASURE, UNIT_OF_MEASURE, total_violations, SAMPLING_END_DATE) %>%
+  rename(max_sample_exceedence = SAMPLE_MEASURE) %>%
+  rename(units = UNIT_OF_MEASURE)
 
 ## I also kept the date, to keep a sense of the distribution for when these violations occurred
 
-write.csv(LCR_violations_per_PWSID, "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/R_GIS/LCR_violations_per_PWSID.csv")
-
+write_rds(LCR_samp, "Data/lcr_violations.rds")
 ################################################################################
 ## Health-based Violations
 ################################################################################
