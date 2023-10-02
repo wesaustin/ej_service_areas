@@ -91,9 +91,9 @@ lcr_vio <- lcr_vio %>%
 
 ## get counts for number of violations by PWSID 
 
-summary(lcr_samp$total_violations)
+summary(lcr_vio$pb_vio_count)
 
-write_rds(lcr_samp, "Data/lcr_violations.rds")
+write_rds(lcr_vio, "Data/lcr_violations.rds")
 
 ################################################################################
 ## Health-based Violations
