@@ -40,48 +40,61 @@ getwd()
 ## LCR 
 ################################################################################
 
-## Load LCR data
 
-LCR_samp <- read_csv("C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems/Data/SDWA raw/SDWA_LCR_SAMPLES.csv")
+## Load lcr data
 
-## find the samples exceeding 0.015 mg/l lead and group by PWSID
-LCR_samp <- LCR_samp %>%
-  mutate(aet_viol = case_when(
-    SAMPLE_MEASURE > 0.15 & CONTAMINANT_CODE == "PB90" ~ "YES", 
-    SAMPLE_MEASURE > 1.3 & CONTAMINANT_CODE == "CU90"  ~ "YES",
-    TRUE ~ "NO"
+lcr_samp <- read_csv("C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems/Data/SDWA raw/SDWA_lcr_SAMPLES.csv")
+
+## find the samples exceeding 0.015 mg/l lead and 1.3mg/L for copper, 
+# Group by violation type and by PWSID
+
+# Create different variables for different violation types
+
+## 2 continuous: average sample for each pwsid across the period for lead and for copper 
+
+## 2 discrete : number of lead and number of copper exceedances at each pwsid 
+
+lcr_samp <- lcr_samp %>%
+  mutate(cu_vio = case_when(
+    CONTAMINANT_CODE == "PB90" ~ NA, 
+    SAMPLE_MEASURE >= 1.3 & CONTAMINANT_CODE == "CU90"  ~ TRUE,
+    TRUE ~ FALSE
   )) %>%
-  filter(aet_viol == "YES")
+  mutate(pb_vio = case_when(
+    SAMPLE_MEASURE >= 0.15 & CONTAMINANT_CODE == "PB90" ~ TRUE, 
+    CONTAMINANT_CODE == "CU90"  ~ NA,
+    TRUE ~ FALSE
+  )) 
 
-## Maybe take a look!
-glimpse(LCR_samp)
+lcr_vio <- lcr_samp %>%
+  group_by(CONTAMINANT_CODE, PWSID) %>%
+  mutate(cu_vio_count = sum(cu_vio, na.rm = TRUE)) %>%
+  mutate(pb_vio_count = sum(pb_vio, na.rm = TRUE)) %>%
+  mutate(avg_cu_level = ifelse(CONTAMINANT_CODE == "CU90", mean(SAMPLE_MEASURE), NA)) %>%
+  mutate(avg_pb_level = ifelse(CONTAMINANT_CODE == "PB90", mean(SAMPLE_MEASURE), NA)) %>%
+  mutate(max_cu_level = ifelse(CONTAMINANT_CODE == "CU90", max(SAMPLE_MEASURE), NA)) %>%
+  mutate(max_pb_level = ifelse(CONTAMINANT_CODE == "PB90", max(SAMPLE_MEASURE), NA)) %>%
+  ungroup(CONTAMINANT_CODE) %>%
+  fill(c('avg_pb_level', 'avg_cu_level', 'max_cu_level', 'max_pb_level'), .direction = "downup") %>%
+  mutate(cu_vio_count = max(cu_vio_count)) %>%
+  mutate(pb_vio_count = max(pb_vio_count)) 
 
-## get counts for number of violations by PWSID 
-
-LCR_samp <- LCR_samp %>%
-  group_by(PWSID) %>%
-  mutate(total_violations = n())
-
-summary(LCR_samp$total_violations)
-
-## Now select the max sample measure for each PSWID
-LCR_samp <- LCR_samp %>%
-  ungroup(PWSID) %>%
-  filter(SAMPLE_MEASURE == max(SAMPLE_MEASURE), .by = PWSID) %>%
-  distinct(PWSID, .keep_all = TRUE) 
-
-## check that your data looks good, should have 1 of each violating PWSID and a column with total violations
+#checking that pb and cu levels are filled in correctly
+y <- filter(lcr_vio, PWSID == "IL3049031")
 
 ## Clean data, keep only the total number of violations per PWSID and the maximum contamination in each
 
-LCR_samp <- LCR_samp %>%
-  dplyr::select(PWSID, SAMPLE_MEASURE, UNIT_OF_MEASURE, total_violations, SAMPLING_END_DATE) %>%
-  rename(max_sample_exceedence = SAMPLE_MEASURE) %>%
-  rename(units = UNIT_OF_MEASURE)
+lcr_vio <- lcr_vio %>%
+  distinct(PWSID, .keep_all = TRUE) %>%
+  dplyr::select(CONTAMINANT_CODE, PWSID, cu_vio_count, pb_vio_count, 
+                avg_cu_level, avg_pb_level, max_cu_level, max_pb_level)
 
-## I also kept the date, to keep a sense of the distribution for when these violations occurred
+## get counts for number of violations by PWSID 
 
-write_rds(LCR_samp, "Data/lcr_violations.rds")
+summary(lcr_samp$total_violations)
+
+write_rds(lcr_samp, "Data/lcr_violations.rds")
+
 ################################################################################
 ## Health-based Violations
 ################################################################################
