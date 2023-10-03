@@ -2,7 +2,7 @@
 
 ###############################################################################
 # EJSCREENBATCH for the Water System Service Boundaries - ZIPCODES SERVED
-# National Center for Environemental Economics 
+# National Center for Environmental Economics 
 # Last edited 8/22/23
 ###############################################################################
 

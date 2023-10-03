@@ -1,3 +1,10 @@
+###############################################################################
+# EJSCREENBATCH for the Water System Service Boundaries
+# National Center for Environmental Economics 
+# Last edited 8/6/23
+###############################################################################
+
+
 library(tidyverse)
 library(data.table)
 library(sf)
@@ -141,10 +148,8 @@ write_xlsx(zipcode_data, "C:/Users/gaustin/OneDrive - Environmental Protection A
 # Merge County-level Demographic Data back to the Full PWS Dataset and Save Files
 
 county_dems <- read_excel("NCEE - Water System Service Boundaries/data/demographics/county_dems.xlsx")
-county_dems <- read_excel("NCEE - Water System Service Boundaries/data/demographics/county_dems.xlsx")
 
-comb <- anti_join(zipcode_data,  county_dems,  by = 'pwsid' ) 
-%>% 
+comb <- anti_join(zipcode_data,  county_dems,  by = 'pwsid' )  %>% 
   st_drop_geometry
 
 
