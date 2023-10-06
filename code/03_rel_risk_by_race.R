@@ -102,13 +102,17 @@ rm(HB_vio)
 ## lcr violations 
 ################################################################################
 
-lcr_vio <- read_rds("data/lcr_vio_combined.rds")
+lcr_vio <- read_rds("data/combined/lcr_vio_combined.rds")
 
 ################################################################################
 ## Data manipulation : Race indicator
 ################################################################################
 
 ## Relative risk of POC and non-hispanic whites
+
+## Check for the pb levels, gives really weird numbers
+
+## Number of violations
 
 lcr_vio <- lcr_vio %>%
   filter(pop_served != 0)%>% #remove systems with no pop served
@@ -123,28 +127,56 @@ lcr_vio <- lcr_vio %>%
   mutate(nhw_served = whitepct*pop_served)#non hispanic white served
 
 lcr_vio <- lcr_vio %>%
-  mutate(black_risk = weighted.mean(total_violations, black_served, na.rm= TRUE)) %>% #black population weight
-  mutate(amer_ind_risk = weighted.mean(total_violations, amer_ind_served, na.rm= TRUE)) %>% #american indian weight
-  mutate(asian_risk = weighted.mean(total_violations, asian_served, na.rm= TRUE)) %>% #asian pop weight
-  mutate(pac_isl_risk = weighted.mean(total_violations, pac_isl_served, na.rm= TRUE)) %>% # pacific islander
-  mutate(hispanic_risk = weighted.mean(total_violations, hispanic_served, na.rm= TRUE)) %>% # hispanic
-  mutate(nhw_risk = weighted.mean(total_violations, nhw_served, na.rm= TRUE)) #non-hispanic white
+  mutate(black_risk = weighted.mean(pb_vio_count, black_served, na.rm= TRUE)) %>% #black population weight
+  mutate(amer_ind_risk = weighted.mean(pb_vio_count, amer_ind_served, na.rm= TRUE)) %>% #american indian weight
+  mutate(asian_risk = weighted.mean(pb_vio_count, asian_served, na.rm= TRUE)) %>% #asian pop weight
+  mutate(pac_isl_risk = weighted.mean(pb_vio_count, pac_isl_served, na.rm= TRUE)) %>% # pacific islander
+  mutate(hispanic_risk = weighted.mean(pb_vio_count, hispanic_served, na.rm= TRUE)) %>% # hispanic
+  mutate(nhw_risk = weighted.mean(pb_vio_count, nhw_served, na.rm= TRUE)) #non-hispanic white
 
 # Generate Relative Risk 
 rel_risk_black <- lcr_vio$black_risk / lcr_vio$nhw_risk
-#1.07
+#1.41
 
 rel_risk_am_in <- lcr_vio$amer_ind_risk / lcr_vio$nhw_risk
-#0.72
+#0.74
 
 rel_risk_asian <- lcr_vio$asian_risk / lcr_vio$nhw_risk
-#1.24
+#1.67
 
 rel_risk_pac_isl <- lcr_vio$pac_isl_risk / lcr_vio$nhw_risk
-#0.97
+#0.96
 
 rel_risk_hisp <- lcr_vio$hispanic_risk / lcr_vio$nhw_risk
-#0.78
+#1.00
+
+## Lead levels
+
+lcr_vio <- lcr_vio %>%
+  mutate(black_risk = weighted.mean(avg_pb_level, black_served, na.rm= TRUE)) %>% #black population weight
+  mutate(amer_ind_risk = weighted.mean(avg_pb_level, amer_ind_served, na.rm= TRUE)) %>% #american indian weight
+  mutate(asian_risk = weighted.mean(avg_pb_level, asian_served, na.rm= TRUE)) %>% #asian pop weight
+  mutate(pac_isl_risk = weighted.mean(avg_pb_level, pac_isl_served, na.rm= TRUE)) %>% # pacific islander
+  mutate(hispanic_risk = weighted.mean(avg_pb_level, hispanic_served, na.rm= TRUE)) %>% # hispanic
+  mutate(nhw_risk = weighted.mean(avg_pb_level, nhw_served, na.rm= TRUE)) #non-hispanic white
+
+# Generate Relative Risk 
+rel_risk_black <- lcr_vio$black_risk / lcr_vio$nhw_risk
+#0.14
+
+rel_risk_am_in <- lcr_vio$amer_ind_risk / lcr_vio$nhw_risk
+#0.05
+
+rel_risk_asian <- lcr_vio$asian_risk / lcr_vio$nhw_risk
+#0.09
+
+rel_risk_pac_isl <- lcr_vio$pac_isl_risk / lcr_vio$nhw_risk
+#0.06
+
+rel_risk_hisp <- lcr_vio$hispanic_risk / lcr_vio$nhw_risk
+#0.08
+
+#These values do not make any sense to me
 
 # Clear memory
 rm(lcr_vio)
