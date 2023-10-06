@@ -121,7 +121,6 @@ rm(HB_vio)
 
 # Dataset on LCR violations 
 
-####THIS HAS NOT BEEN RUN YET
 
 lcr_vio <- readRDS("data/combined/lcr_vio_usgs.rds")
 
@@ -139,42 +138,42 @@ lcr_vio <- lcr_vio %>%
   mutate(nhw_served = whitepct*pop_served)#non hispanic white served
 
 lcr_vio <- lcr_vio %>%
-  mutate(minor_risk = weighted.mean(total_violations, minor_served, na.rm= TRUE)) %>% #black population weight
-  mutate(black_risk = weighted.mean(total_violations, black_served, na.rm= TRUE)) %>% #black population weight
-  mutate(amer_ind_risk = weighted.mean(total_violations, amer_ind_served, na.rm= TRUE)) %>% #american indian weight
-  mutate(asian_risk = weighted.mean(total_violations, asian_served, na.rm= TRUE)) %>% #asian pop weight
-  mutate(pac_isl_risk = weighted.mean(total_violations, pac_isl_served, na.rm= TRUE)) %>% # pacific islander
-  mutate(hispanic_risk = weighted.mean(total_violations, hispanic_served, na.rm= TRUE)) %>% # hispanic
-  mutate(nhw_risk = weighted.mean(total_violations, nhw_served, na.rm= TRUE)) #non-hispanic white
+  mutate(minor_risk = weighted.mean(avg_pb_level, minor_served, na.rm= TRUE)) %>% #black population weight
+  mutate(black_risk = weighted.mean(avg_pb_level, black_served, na.rm= TRUE)) %>% #black population weight
+  mutate(amer_ind_risk = weighted.mean(avg_pb_level, amer_ind_served, na.rm= TRUE)) %>% #american indian weight
+  mutate(asian_risk = weighted.mean(avg_pb_level, asian_served, na.rm= TRUE)) %>% #asian pop weight
+  mutate(pac_isl_risk = weighted.mean(avg_pb_level, pac_isl_served, na.rm= TRUE)) %>% # pacific islander
+  mutate(hispanic_risk = weighted.mean(avg_pb_level, hispanic_served, na.rm= TRUE)) %>% # hispanic
+  mutate(nhw_risk = weighted.mean(avg_pb_level, nhw_served, na.rm= TRUE)) #non-hispanic white
 
 # Generate Relative Risk :Racial categories
 rel_risk_minor <- lcr_vio$minor_risk / lcr_vio$nhw_risk
 
-#1.03
+#0.65
 
 
 rel_risk_black <- lcr_vio$black_risk / lcr_vio$nhw_risk
 
-#1.03
+#1.08
 
 
 rel_risk_am_in <- lcr_vio$amer_ind_risk / lcr_vio$nhw_risk
 
-#0.72
+#0.39
 
 
 rel_risk_asian <- lcr_vio$asian_risk / lcr_vio$nhw_risk
 
-#1.37
+#0.53
 
 rel_risk_pac_isl <- lcr_vio$pac_isl_risk / lcr_vio$nhw_risk
 
-#1.34
+#0.44
 
 
 rel_risk_hisp <- lcr_vio$hispanic_risk / lcr_vio$nhw_risk
 
-#0.91
+#0.38
 
 # Generate Relative Risk : Income category
 
@@ -182,12 +181,12 @@ lcr_vio <- lcr_vio %>%
   mutate(highinc = (1-lowinc)) %>% #create high income category
   mutate(highinc_served = highinc*pop_served) %>% #Find total population served in each category
   mutate(lowinc_served = lowinc*pop_served) %>%
-  mutate(highinc_risk = weighted.mean(total_violations, highinc_served, na.rm= TRUE)) %>% #High income weight
-  mutate(lowinc_risk = weighted.mean(total_violations, lowinc_served, na.rm= TRUE)) #low income weight
+  mutate(highinc_risk = weighted.mean(avg_pb_level, highinc_served, na.rm= TRUE)) %>% #High income weight
+  mutate(lowinc_risk = weighted.mean(avg_pb_level, lowinc_served, na.rm= TRUE)) #low income weight
 
 lowinc_rel_risk <- lcr_vio$lowinc_risk / lcr_vio$highinc_risk
 
-# 0.96
+# 1.05
 
 # Clear memory
 rm(lcr_vio)
