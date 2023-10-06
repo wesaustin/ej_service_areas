@@ -61,7 +61,7 @@ lcr_samp <- lcr_samp %>%
     TRUE ~ FALSE
   )) %>%
   mutate(pb_vio = case_when(
-    SAMPLE_MEASURE >= 0.15 & CONTAMINANT_CODE == "PB90" ~ TRUE, 
+    SAMPLE_MEASURE >= 0.015 & CONTAMINANT_CODE == "PB90" ~ TRUE, 
     CONTAMINANT_CODE == "CU90"  ~ NA,
     TRUE ~ FALSE
   )) 
