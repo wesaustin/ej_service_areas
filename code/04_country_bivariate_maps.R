@@ -1,7 +1,7 @@
 ################################################################################
 # Bivariate maps for drinking water indicators : country maps
 # National Center for Environmental Economics
-# Last edited: 9/29/30
+# Last edited: 10/6/30
 ################################################################################
 
 # Drawing from code developed by Wes Austin for a biscale function with action levels 
@@ -30,8 +30,7 @@ pacman::p_load(
   cowplot, # for bivariate mapping
   stringr, # string manipulation
   mapview,
-  pals,
-  colorblindcheck
+  pals
 )
 
 ################################################################################
@@ -50,8 +49,6 @@ plot_path <- "Plots/country/"
 
 source("Code/biscale_fn_action_level.R")
 
-## Color palette 
-
 custom_pal3_4 <- c(
   "1-1" = "#d3d3d3", # low x, low y
   "2-1" = "#9c9ecd",
@@ -63,11 +60,7 @@ custom_pal3_4 <- c(
   "2-3" = "#83884f",
   "3-3" = "#545b4d" # high x, high y
 )
-bi_pal(pal = custom_pal3_4, dim = 3)
 
-#Check for types of colorblindness
-
-palette_check(custom_pal3_3, plot = TRUE) #okay
 
 ################################################################################
 ## Load tract data for all US
@@ -157,7 +150,7 @@ print(hb_minor)
 dev.off()
 
 
-#Establish biscale comparison: HB violations and % POC
+#Establish biscale comparison: HB violations and % Low Income
 
 data_biscale_al <- bi_class_al(HB_vio_all,
                                x = avg_vio_cbg, y = LOWINCPCT, #%Low income
@@ -165,7 +158,7 @@ data_biscale_al <- bi_class_al(HB_vio_all,
                                action_level = T, action_vector = action_vector) %>%
   filter(!str_detect(bi_class, 'NA'))
 
-# Map 1: Biscale violations: HB violations and low income
+# Map 2: Biscale violations: HB violations and low income
 
 map <- ggplot(data_biscale_al) +
   geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
@@ -196,6 +189,113 @@ dev.off()
 
 rm(HB_vio_all, cbg_HB_vio, hb_lowinc, hb_minor)
 
+
+################################################################################
+## LCR violations
+################################################################################
+
+cbg_lcr_vio <- read_rds("Data/combined/cbg_lcr_vio_combined.rds") #load lcr data
+
+# CBG
+
+cbg_lcr_vio <- cbg_lcr_vio %>%
+  group_by(ID) %>%
+  mutate(pb_vio_cbg = sum(pb_vio_count*ACSTOTPOP)/sum(ACSTOTPOP)) %>% #average number of lead violations per CBG
+  mutate(cu_vio_cbg = sum(cu_vio_count*ACSTOTPOP)/sum(ACSTOTPOP)) %>% #average number of copper violations per CBG
+  mutate(avg_pb_cbg = sum(avg_pb_level*ACSTOTPOP)/sum(ACSTOTPOP)) %>% #average lead levels per CBG
+  mutate(avg_cu_cbg = sum(avg_cu_level*ACSTOTPOP)/sum(ACSTOTPOP)) %>% #average copper levels per CBG
+  distinct(ID, .keep_all = TRUE)
+
+lcr_vio_all <- left_join(US_cbg_50, cbg_lcr_vio) 
+
+st_as_sf(lcr_vio_all) #set as spatial object
+
+################################################################################
+## Create bivariate map
+################################################################################
+
+# 1. define the action level. Currently, the function takes two numbers for the action_vector, can be modified
+
+summary(lcr_vio_all$avg_pb_level) #distribution
+
+#3rd quartile = 0.01, so we will use that as a limit for "frequent violators"
+
+action_vector <- c(0.005, 0.015) #Modify for indicator-specific
+
+#Establish biscale comparison: lcr violations and % minority 
+
+data_biscale_al <- bi_class_al(lcr_vio_all,
+                               x = avg_pb_cbg, y = MINORPCT,
+                               style = "quantile", dim = 3,
+                               action_level = T, action_vector = action_vector) %>%
+  filter(!str_detect(bi_class, 'NA'))
+
+# Map 4: Lead levels and % POC
+
+map <- ggplot(data_biscale_al) +
+  geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "BlueOr", dim = 3) +
+  bi_theme(bg_color = "#ffffff")
+
+legend <- bi_legend(pal = "BlueOr",
+                    dim = 3,
+                    xlab = "Violations",
+                    ylab = "% POC",
+                    size = 6)
+
+# Plot and legend
+
+pb_minor <- cowplot::ggdraw() +
+  draw_plot(map, x = 0, y = 0, width = 1, height = 1) +
+  draw_plot(legend, x = 0.1, y = 0.05, width = 0.2, height = 0.2)
+
+
+png(file = paste0(plot_path,"pb_lvl_POC_biv_US.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 12,
+    bg = "transparent")
+
+print(pb_minor)
+
+dev.off()
+
+#Establish biscale comparison: PB levels and % Low Income
+
+data_biscale_al <- bi_class_al(lcr_vio_all,
+                               x = avg_pb_cbg, y = LOWINCPCT, #%Low income
+                               style = "quantile", dim = 3,
+                               action_level = T, action_vector = action_vector) %>%
+  filter(!str_detect(bi_class, 'NA'))
+
+# Map 2: Biscale violations: HB violations and low income
+
+map <- ggplot(data_biscale_al) +
+  geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = custom_pal3_4, dim = 3) +
+  bi_theme() +
+  theme(plot.background = element_blank())
+
+legend <- bi_legend(pal = custom_pal3_4,
+                    dim = 3,
+                    xlab = "Violations",
+                    ylab = "% Low Inc",
+                    size = 20)
+
+# Plot and legend
+
+pb_lowinc <- cowplot::ggdraw() +
+  draw_plot(map, x = 0, y = 0, width = 1, height = 1) +
+  draw_plot(legend, x = 0.1, y = 0.05, width = 0.2, height = 0.2)
+
+png(file = paste0(plot_path,"pb_lowinc_biv_US.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 12,
+    bg = "transparent")
+
+print(pb_lowinc)
+
+dev.off()
+
+
+rm(lcr_vio_all, cbg_lcr_vio)
 
 ################################################################################
 ## PFAS violations
@@ -516,3 +616,4 @@ dev.off()
 
 
 rm(tcr_vio_all, cbg_tcr_vio, tcr_lowinc, tcr_minor)
+
