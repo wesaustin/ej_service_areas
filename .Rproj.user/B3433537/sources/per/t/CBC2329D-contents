@@ -1,9 +1,9 @@
 
 
 ###############################################################################
-# EJSCREENBATCH for the Water System Service Boundaries - ZIPCODES SERVED
+# EJSCREENBATCH for the Water System Service Boundaries - USGS Boundaries
 # National Center for Environmental Economics 
-# Last edited 8/22/23
+# Last edited 10/23/23
 ###############################################################################
 
 
