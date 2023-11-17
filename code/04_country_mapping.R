@@ -83,14 +83,15 @@ US_tract_50 <- US_tract %>%
 ## Health violations
 ################################################################################
 
-cbg_HB_vio <- read_rds("Data/combined/tract_HB_vio_combined.rds") 
+cbg_HB_vio <- read_rds("Data/combined/cbg_HB_vio_combined.rds") 
 
 # For cbg's with more than one PWSID, find average number of violations at the tract level
 # then collapse to include only 1 observation per census tract level (12-digit "ID") 
 
-cbg_HB_vio <- cbg_HB_vio %>%
+
+cbg_HB_vio <- cbg_HB_vio_combined %>%
   group_by(ID) %>%
-  mutate(avg_vio_cbg = sum(total_violations*ACSTOTPOP)/sum(ACSTOTPOP)) %>%
+  mutate(avg_vio_cbg = mean(total_violations)) %>%
   mutate(avg_vio_length = mean(diff_days)) %>%
   distinct(ID, .keep_all = TRUE) 
 

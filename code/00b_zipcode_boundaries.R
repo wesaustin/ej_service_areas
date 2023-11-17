@@ -5,46 +5,51 @@
 ###############################################################################
 
 
-library(tidyverse)
-library(data.table)
-library(sf)
-library(tidycensus)
-library(leaflet)
-library(janitor) 
-library(writexl)
-library(readxl)
+# Description of program: This program runs the EJSCREENbatch tool to derive population-
+# level statistics for all zipcodes that are associated with public water systems
+# in the UCMR 3, UCMR 4, UCMR 5, and in SDWIS. The first section 
+
+
+###############################################################################
+# Load libraries, directories 
+###############################################################################
+
+library(devtools)
+#install_github('USEPA/EJSCREENbatch', force = TRUE)
+
+list.of.packages <- c("janitor","writexl","readxl","tigris","leaflet","sf","tidyverse","EJSCREENbatch",
+                      "tidycensus","tidyverse")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, repos = "http://cran.rstudio.com/")
+lapply(list.of.packages, library, character.only = TRUE)
 
 options(tigris_use_cache = TRUE)
  
-
-
-getwd()
-setwd('../..')
-getwd()
-
 #===============================================================================
 #---------------------------US STATE MAP----------------------------------------
 #===============================================================================
 
+# Get data from the 2016-2020 5-year ACS
 us_states <- get_acs(
   geography = "state",
   variables = "B01002_001",
   year = 2020,
-  survey = "acs1",
+  survey = "acs5",
   geometry = TRUE,
   resolution = "20m"
 ) %>%
   st_transform(4326)
 st_crs(us_states)
 
-plot(us_states$geometry)
+#plot(us_states$geometry)
 
 
  
 #==============================================================================
 #---------------------------ZIP CODES------------------------------------------
 #==============================================================================
-#Use UCMR 3 & 4 for now. Can add or replace with UCMR 5 later when available.
+
+#Import UCMR 3, 4, and 5
 # ucmr5 <- https://www.epa.gov/dwucmr/occurrence-data-unregulated-contaminant-monitoring-rule#5
 zip_links <- c("https://www.epa.gov/sites/default/files/2017-02/ucmr-3-occurrence-data.zip",
                "https://www.epa.gov/sites/default/files/2020-04/ucmr_4_occurrence_data.zip",
@@ -63,6 +68,7 @@ for(i in 1:length(zip_links)){
   unlink(temp)
 }
 
+# Import SDWIS 
 sdwis <- read.csv("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/sdwis/geographic_areas_v2.csv")  %>% 
   clean_names()   %>% 
   filter(!is.na(zip_code_served))  %>% 
@@ -71,7 +77,7 @@ sdwis <- read.csv("C:/Users/gaustin/OneDrive - Environmental Protection Agency (
   select('PWSID', 'ZIPCODE')     
 
  
-#---------------------------Combine ZipCodes------------------------------------
+# Combine ZipCodes
 zipcodes <- list(ucmr3, ucmr4, ucmr5, sdwis) %>% 
   reduce(rbind) %>% 
   mutate(ZIPCODE = str_replace_all(ZIPCODE, "-", ""),
@@ -84,7 +90,6 @@ zipcodes <- list(ucmr3, ucmr4, ucmr5, sdwis) %>%
   filter(to_delete==0) %>% 
   dplyr::select(PWSID, ZIPCODE, ZIPCODE_numeric)
 
-#---------------------------Zip Boundaries--------------------------------------
 #Generate zip code boundaries for each PWSID
 zipcodeboundaries <- st_read("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/ucmr/zipcode_areas/tl_2019_us_zcta510/tl_2019_us_zcta510.shp") %>% 
   st_transform(4326) %>% 
@@ -99,7 +104,7 @@ st_write(zipcodeboundaries, "C:/Users/gaustin/OneDrive - Environmental Protectio
 
 
 ################################################################################
-# Now Run EJSCREENbatch Modified on the Zipcodes 
+# Load the Zipcode layer just produced
 ################################################################################
 
 
@@ -109,14 +114,14 @@ zipcodeboundaries<- st_read( "C:/Users/gaustin/OneDrive - Environmental Protecti
   sf::st_make_valid() 
 
 ###############################################################################
-# EJfunction 
+# EJfunction over Zipcodes
 ###############################################################################
 
 # Tabulate states to figure out which to drop 
-zipcodeboundaries <- zipcodeboundaries  %>%
-  dplyr::mutate(state = substr(PWSID,1,2))
+tmp <- zipcodeboundaries  %>%
+  st_drop_geometry
 
-zipcodeboundaries %>%
+tmp %>%
   group_by(state) %>%
   summarise(n = n()) %>%
   mutate(
@@ -126,23 +131,26 @@ zipcodeboundaries %>%
   print(n = 100)
 
 zipcodeboundaries <- zipcodeboundaries  %>% 
-  filter(!(state %in% c("GU","MP","VI","AS","PR","AK","HI")))
+  filter(!(state %in% c("GU","MP","VI","AS","PR")))
 zipcodeboundaries <- st_set_geometry(zipcodeboundaries,"geometry")
 
 # Source modified files from EJSCREENbatch
-sapply(list.files('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/pfas_npdwr_ej/2023_analysis/R', full.names=TRUE), source)
+# sapply('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/code/data_cleaning/EJSCREENBufferRaster.R', source)
 
 # Call modified EJfunction
-batch.output <- EJfunction(LOI_data = zipcodeboundaries, data_year = 2021, buffer = 0, raster = T)
-
+batch.output_zip <- EJfunction(LOI_data = zipcodeboundaries, data_year = 2021, buffer = 0, raster = T)
 
 # Save Just the zipcode data
 
-zipcode_data <- batch.output$EJ.loi.data$LOI_radius_2021_0mi %>% 
+zipcode_data <- batch.output_zip$EJ.loi.data$LOI_radius_2021_0mi %>% 
   st_drop_geometry %>%
   rename(pwsid = PWSID)  %>%
   write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems.csv')
 write_xlsx(zipcode_data, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems.xlsx")
+
+
+
+
 
 
 # Merge County-level Demographic Data back to the Full PWS Dataset and Save Files

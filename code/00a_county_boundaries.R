@@ -5,21 +5,23 @@
 ###############################################################################
 
 
-# Load libraries, directories 
-library(tidyverse)
-library(sf)
-library(leaflet)
-library(tigris)
-library(readxl)
-library(writexl)
-library(janitor) 
+# Description of program: This program runs the EJSCREENbatch tool to derive population-
+# level statistics for all counties in the US. It then joins these data to a PWS-county 
+# database to impute county demographic information across all public water systems. 
 
-#if not in project subfolder, navigate to main folder
-# if(str_detect(getwd(), "ej_service_areas/")){
-#   getwd()
-#   setwd('../..')
-#   getwd()  
-# }
+
+###############################################################################
+# Load libraries, directories 
+###############################################################################
+
+library(devtools)
+#install_github('USEPA/EJSCREENbatch', force = TRUE)
+
+list.of.packages <- c("janitor","writexl","readxl","tigris","leaflet","sf","tidyverse","EJSCREENbatch")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, repos = "http://cran.rstudio.com/")
+lapply(list.of.packages, library, character.only = TRUE)
+
 
 #if subfolder for County boundaries does not exist, create it
 mainDir <- "data/generated_boundaries/"
@@ -74,17 +76,18 @@ together %>%
   print(n = 100)
 
 together <- together  %>% 
-  filter(!(STUSPS %in% c("GU","MP","VI","AS","PR","AK","HI")))
+  filter(!(STUSPS %in% c("GU","MP","VI","AS","PR")))
 
-# Source modified files from EJSCREENbatch
-sapply(list.files('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/pfas_npdwr_ej/2023_analysis/R', full.names=TRUE), source)
 
 # Call modified EJfunction
 batch.output <- EJfunction(LOI_data = together, data_year = 2021, buffer = 0, raster = T)
 
+
+
 ###############################################################################
 # Merge County-level Demographic Data back to the Full PWS Dataset and Save Files
 ###############################################################################
+
 
 county_data <- batch.output$EJ.loi.data$LOI_radius_2021_0mi %>% 
   st_drop_geometry
