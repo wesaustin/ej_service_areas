@@ -78,15 +78,17 @@ colnames(my_df)[colnames(my_df) == "risk"] <- paste0(i, "_rel_risk")
   
 }
 
+hb_risk <- my_df %>%
+  mutate(vio_type = as.factor("hb"))
+
 write.csv(my_df, file = "data/rel_risk_hb.csv")
 
+  
 ################################################################################
 ## Lead exceedances
 ################################################################################
 
 # Set up the function call 
-
-boundary <- c("epic", "usgs", "zc", "county")
 
 my_df <- data.frame(risk_type = c("race", "income"))
 
@@ -120,15 +122,17 @@ for (i in boundary) {
   
 }
 
-write.csv(my_df, file = "data/rel_risk_lcr.csv")
+lead_risk <- my_df %>%
+  mutate(vio_type = as.factor("lead"))
+
+write.csv(my_df, file = "data/rel_risk_lead.csv")
+
 
 ################################################################################
 ## PFAS violations
 ################################################################################
 
 # Set up the function call 
-
-boundary <- c("epic", "usgs", "zc", "county")
 
 my_df <- data.frame(risk_type = c("race", "income"))
 
@@ -162,15 +166,17 @@ for (i in boundary) {
   
 }
 
+pfas_risk <- my_df %>%
+  mutate(vio_type = as.factor("pfas"))
+
 write.csv(my_df, file = "data/rel_risk_pfas.csv")
+
 
 ################################################################################
 ## Disinfectant Bi-Product monitoring
 ################################################################################
 
 # Set up the function call 
-
-boundary <- c("epic", "usgs", "zc", "county")
 
 my_df <- data.frame(risk_type = c("race", "income"))
 
@@ -204,15 +210,17 @@ for (i in boundary) {
   
 }
 
+dbp_risk <- my_df %>%
+  mutate(vio_type = as.factor("dbp"))
+
 write.csv(my_df, file = "data/rel_risk_dbp.csv")
+
 
 ################################################################################
 ## Total Coliform detections
 ################################################################################
 
 # Set up the function call 
-
-boundary <- c("epic", "usgs", "zc", "county")
 
 my_df <- data.frame(risk_type = c("race", "income"))
 
@@ -246,4 +254,12 @@ for (i in boundary) {
   
 }
 
+tcr_risk <- my_df %>%
+  mutate(vio_type = as.factor("tcr"))
+
 write.csv(my_df, file = "data/rel_risk_tcr.csv")
+
+risk_all <- rbind(hb_risk, lead_risk, pfas_risk, dbp_risk, tcr_risk)
+
+write.csv(risk_all, file = "data/rel_risk_alltcr.csv")
+
