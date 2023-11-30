@@ -118,37 +118,76 @@ zipcodeboundaries<- st_read( "C:/Users/gaustin/OneDrive - Environmental Protecti
 ###############################################################################
 
 # Tabulate states to figure out which to drop 
-tmp <- zipcodeboundaries  %>%
-  st_drop_geometry
-
-tmp %>%
-  group_by(state) %>%
-  summarise(n = n()) %>%
-  mutate(
-    totalN = (cumsum(n)),
-    percent = round((n / sum(n)), 3),
-    cumuPer = round(cumsum(freq = n / sum(n)), 3)) %>%
-  print(n = 100)
+  # tmp <- zipcodeboundaries  %>%
+  #   st_drop_geometry
+  # 
+  # tmp %>%
+  #   group_by(state) %>%
+  #   summarise(n = n()) %>%
+  #   mutate(
+  #     totalN = (cumsum(n)),
+  #     percent = round((n / sum(n)), 3),
+  #     cumuPer = round(cumsum(freq = n / sum(n)), 3)) %>%
+  #   print(n = 100)
 
 zipcodeboundaries <- zipcodeboundaries  %>% 
   filter(!(state %in% c("GU","MP","VI","AS","PR")))
 zipcodeboundaries <- st_set_geometry(zipcodeboundaries,"geometry")
 
-# Source modified files from EJSCREENbatch
-# sapply('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/code/data_cleaning/EJSCREENBufferRaster.R', source)
 
-# Call modified EJfunction
-batch.output_zip <- EJfunction(LOI_data = zipcodeboundaries, data_year = 2021, buffer = 0, raster = T)
+#Check to see if any are outside of CONUS - keep only the zips in CONUS
+mapview(zipcodeboundaries)
+intersects <- st_intersects(zipcodeboundaries, us_states )
+# tmp <- zipcodeboundaries[intersects,]
+
+
+# Source modified files from EJSCREENbatch
+sapply('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/code/data_cleaning/EJSCREENBufferRaster.R', source)
+# sapply(list.files('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/pfas_npdwr_ej/2023_analysis/R', full.names=TRUE), source)
+
+
+chunks <- 16
+chunk_size <- 1037
+zip_list <- split(zipcodeboundaries, rep(1:16, each = 1037, length.out = nrow(zipcodeboundaries)))
+results_list <- list()
+
+# Call modified EJfunction over each chunk of data
+for (i in 1:16) {
+  result <- EJfunction(LOI_data = zip_list[[i]], data_year = 2021, buffer = 0, raster = T)
+  results_list[[i]] <- result
+}
+
+# Need to combine all of the Zipcode and CBG files into one
+
+
+for (i in 1:16) {
+  EJ.loi.data <- results_list[[i]]$EJ.loi.data
+  EJ.cbg.data <- results_list[[i]]$EJ.cbg.data
+  loi_df <- EJ.loi.data$LOI_radius_2021_0mi
+  cbg_df <- EJ.cbg.data$CBG_radius_2021_0mi
+if (i == 1){
+  combined_loi <- loi_df
+  combined_cbg <- cbg_df
+} else{
+  combined_loi <- rbind(combined_loi, loi_df)
+  combined_cbg <- rbind(combined_cbg, loi_df, fill = TRUE)
+}
+}
 
 # Save Just the zipcode data
 
-zipcode_data <- batch.output_zip$EJ.loi.data$LOI_radius_2021_0mi %>% 
+combined_cbg <- combined_cbg %>% 
+  st_drop_geometry %>%
+  rename(pwsid = PWSID)  %>%
+  write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems_area.csv')
+write_xlsx(combined_cbg, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems_area.xlsx")
+
+
+combined_loi <- combined_loi %>% 
   st_drop_geometry %>%
   rename(pwsid = PWSID)  %>%
   write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems.csv')
-write_xlsx(zipcode_data, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems.xlsx")
-
-
+write_xlsx(combined_loi, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems.xlsx")
 
 
 
