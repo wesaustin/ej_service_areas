@@ -11,7 +11,7 @@ library(devtools)
 list.of.packages <- c("magrittr","cowplot","devtools","sf","tidyverse","magick","mapdata","sp",
                       "tidycensus","areal","stringr","openxlsx","readxl",
                       "lubridate","leaflet","biscale","mapview",
-                      "tidyr","stringr","ggplot2","writexl","maps","janitor")
+                      "tidyr","stringr","ggplot2","writexl","maps","janitor", "EJSCREENbatch")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos = "http://cran.rstudio.com/")
 lapply(list.of.packages, library, character.only = TRUE)
@@ -29,8 +29,13 @@ sb <- st_read("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)
 sb_sf <-  sb %>%
           st_as_sf(sf_column_name=geom, crs=4326)
 
-# Rename geom to geometry so that the EJfunction doesn't trip 
-sb_sf <- st_set_geometry(sb_sf, "geometry") 
+# Rename geom to geometry for the EJSB function and drop unnecessary fields
+sb_sf <- st_set_geometry(sb_sf, "geometry") %>%
+  filter(!(state_code %in% c("GU","MP","VI","AS","PR"))) %>%
+  select(-c('primacy_agency_code', 'city_served', 'owner_type_code', 
+            'is_wholesaler_ind', 'centroid_lat','centroid_lon','geometry_source_detail',
+            'pred_05','pred_50','pred_95'))
+
 
 
 ###############################################################################
@@ -38,14 +43,18 @@ sb_sf <- st_set_geometry(sb_sf, "geometry")
 ###############################################################################
 
 
-chunks <- 50
+# Adding a new ID number for joining things later. 
+sb_sf <- sb_sf %>%
+  dplyr::mutate(sb_sf, newid = row_number())
+
+chunks <- 49
 chunk_size <- 1000
-epic_list <- split(sb_sf, rep(1:50, each = 1000, length.out = nrow(sb_sf)))
+epic_list <- split(sb_sf, rep(1:49, each = 1000, length.out = nrow(sb_sf)))
 results_list <- list()
 
 # Call modified EJfunction over each chunk of data
 
-for (i in 1:50) {
+for (i in 1:49) {
   result <- EJfunction(LOI_data = epic_list[[i]], data_year = 2021, buffer = 0, raster = T)
   results_list[[i]] <- result
 }
@@ -53,7 +62,7 @@ for (i in 1:50) {
 # Need to combine all of the USGS and CBG files into one
 
 
-for (i in 1:50) {
+for (i in 1:49) {
   EJ.loi.data <- results_list[[i]]$EJ.loi.data
   EJ.cbg.data <- results_list[[i]]$EJ.cbg.data
   loi_df <- EJ.loi.data$LOI_radius_2021_0mi
@@ -63,12 +72,63 @@ for (i in 1:50) {
     combined_cbg <- cbg_df
   } else{
     combined_loi <- rbind(combined_loi, loi_df)
-    combined_cbg <- rbind(combined_cbg, loi_df, fill = TRUE)
+    combined_cbg <- rbind(combined_cbg, cbg_df)
   }
 }
 
 
+# Create key file to link LOIs to CBGs
 
+cbg.shapes <- combined_cbg %>%
+  dplyr::left_join(data.tog %>% dplyr::select('ID'), by = 'ID') %>%
+  sf::st_as_sf() %>%
+  tibble::rowid_to_column(var = 'cbg_ID')
+
+loi.buffer <- combined_loi
+
+linking.list <- sf::st_intersects(cbg.shapes, sb_sf) %>%
+  as.data.frame() %>%
+  dplyr::rename(cbg_ID = row.id) %>%
+  dplyr::rename(shape_ID = col.id) %>%
+  dplyr::left_join(cbg.shapes %>% 
+                     dplyr::select(cbg_ID, ID) %>%
+                     sf::st_drop_geometry(),
+                   by = 'cbg_ID') %>%
+  dplyr::left_join(loi.buffer %>%
+                     dplyr::select(shape_ID, newid, pwsid) %>%
+                     sf::st_drop_geometry(),
+                   by = 'shape_ID') %>%
+  dplyr::select(-cbg_ID)
+
+linking.list <- linking.list %>%
+  select(ID, pwsid) %>%
+  drop_na(pwsid) %>%
+  distinct() 
+
+
+cbg_and_pwsid <- left_join(combined_cbg, linking.list, by = 'ID', relationship = "many-to-many") %>%
+  distinct()
+
+###############################################################################
+# Save the EPIC data
+###############################################################################
+
+cbg_and_pwsid <- cbg_and_pwsid %>% 
+  st_drop_geometry %>%
+  write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems_area.csv')
+# Too many observations for XLSX
+#write_xlsx(cbg_and_pwsid, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems_area.xlsx")
+
+
+combined_loi <- combined_loi %>% 
+  st_drop_geometry %>%
+  write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems.csv')
+write_xlsx(combined_loi, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems.xlsx")
+
+
+
+###############################################################################
+# Old Code
 # Rename the output for convenience 
 
   # This is water-system level information. 

@@ -43,6 +43,10 @@ sb_sf <- st_set_geometry(sb_sf, "geometry") %>%
 ###############################################################################
 
 
+# Adding a new ID number for joining things later. 
+sb_sf <- sb_sf %>%
+  dplyr::mutate(sb_sf, newid = row_number())
+
 chunks <- 49
 chunk_size <- 1000
 epic_list <- split(sb_sf, rep(1:49, each = 1000, length.out = nrow(sb_sf)))
@@ -82,7 +86,7 @@ cbg.shapes <- combined_cbg %>%
 
 loi.buffer <- combined_loi
 
-linking.list <- sf::st_intersects(cbg.shapes, loi.buffer) %>%
+linking.list <- sf::st_intersects(cbg.shapes, sb_sf) %>%
   as.data.frame() %>%
   dplyr::rename(cbg_ID = row.id) %>%
   dplyr::rename(shape_ID = col.id) %>%
@@ -91,33 +95,35 @@ linking.list <- sf::st_intersects(cbg.shapes, loi.buffer) %>%
                      sf::st_drop_geometry(),
                    by = 'cbg_ID') %>%
   dplyr::left_join(loi.buffer %>%
-                     dplyr::select(shape_ID) %>%
+                     dplyr::select(shape_ID, newid, pwsid) %>%
                      sf::st_drop_geometry(),
                    by = 'shape_ID') %>%
   dplyr::select(-cbg_ID)
 
 linking.list <- linking.list %>%
+  select(ID, pwsid) %>%
+  drop_na(pwsid) %>%
+  distinct() 
+
+
+cbg_and_pwsid <- left_join(combined_cbg, linking.list, by = 'ID', relationship = "many-to-many") %>%
   distinct()
 
 ###############################################################################
 # Save the EPIC data
 ###############################################################################
 
-combined_cbg <- combined_cbg %>% 
+cbg_and_pwsid <- cbg_and_pwsid %>% 
   st_drop_geometry %>%
   write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems_area.csv')
-write_xlsx(combined_cbg, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems_area.xlsx")
+# Too many observations for XLSX
+#write_xlsx(cbg_and_pwsid, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems_area.xlsx")
 
 
 combined_loi <- combined_loi %>% 
   st_drop_geometry %>%
   write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems.csv')
 write_xlsx(combined_loi, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems.xlsx")
-
-
-linking.list <- linking.list %>% 
-  write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_cbg_links.csv')
-write_xlsx(combined_loi, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_cbg_links.xlsx")
 
 
 

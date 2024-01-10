@@ -92,14 +92,31 @@ batch.output <- EJfunction(LOI_data = together, data_year = 2021, buffer = 0, ra
 county_data <- batch.output$EJ.loi.data$LOI_radius_2021_0mi %>% 
   st_drop_geometry
 pws_county_dems <- left_join(sb_county,  county_data, by = 'GEOID' )  %>% 
-  st_drop_geometry
+  st_drop_geometry 
   
 
+###############################################################################
+# Add in population
+###############################################################################
+
+
+pops <- read_csv("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/SDWA_PUB_WATER_SYSTEMS.csv") %>%
+  select(PWSID, POPULATION_SERVED_COUNT) %>%
+  rename(pwsid = PWSID) %>%
+  rename(population_served_count = POPULATION_SERVED_COUNT) %>%
+  distinct(pwsid, .keep_all = TRUE)
+
+pws_county_dems <- pws_county_dems %>% 
+  distinct(pwsid, .keep_all = TRUE) %>%
+  left_join(county_dems, pops, by = 'pwsid' )
+  
 # Save output from batch tool
 
 pws_county_dems %>%
     write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/county_dems.csv')
 write_xlsx(pws_county_dems, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/county_dems.xlsx")
+
+
 
 
 

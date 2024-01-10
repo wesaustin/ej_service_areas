@@ -136,23 +136,23 @@ zipcodeboundaries <- st_set_geometry(zipcodeboundaries,"geometry")
 
 
 #Check to see if any are outside of CONUS - keep only the zips in CONUS
-mapview(zipcodeboundaries)
-intersects <- st_intersects(zipcodeboundaries, us_states )
+# mapview(zipcodeboundaries)
+# intersects <- st_intersects(zipcodeboundaries, us_states )
 # tmp <- zipcodeboundaries[intersects,]
 
 
 # Source modified files from EJSCREENbatch
-sapply('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/code/data_cleaning/EJSCREENBufferRaster.R', source)
+# sapply('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/code/data_cleaning/EJSCREENBufferRaster.R', source)
 # sapply(list.files('C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/pfas_npdwr_ej/2023_analysis/R', full.names=TRUE), source)
 
 
-chunks <- 16
-chunk_size <- 1037
-zip_list <- split(zipcodeboundaries, rep(1:16, each = 1037, length.out = nrow(zipcodeboundaries)))
+chunks <- 17
+chunk_size <- 1000
+zip_list <- split(zipcodeboundaries, rep(1:17, each = 1000, length.out = nrow(zipcodeboundaries)))
 results_list <- list()
 
 # Call modified EJfunction over each chunk of data
-for (i in 1:16) {
+for (i in 13:17) {
   result <- EJfunction(LOI_data = zip_list[[i]], data_year = 2021, buffer = 0, raster = T)
   results_list[[i]] <- result
 }
@@ -160,7 +160,7 @@ for (i in 1:16) {
 # Need to combine all of the Zipcode and CBG files into one
 
 
-for (i in 1:16) {
+for (i in 1:17) {
   EJ.loi.data <- results_list[[i]]$EJ.loi.data
   EJ.cbg.data <- results_list[[i]]$EJ.cbg.data
   loi_df <- EJ.loi.data$LOI_radius_2021_0mi
@@ -170,7 +170,7 @@ if (i == 1){
   combined_cbg <- cbg_df
 } else{
   combined_loi <- rbind(combined_loi, loi_df)
-  combined_cbg <- rbind(combined_cbg, loi_df, fill = TRUE)
+  combined_cbg <- rbind(combined_cbg, cbg_df, fill = TRUE)
 }
 }
 
@@ -178,7 +178,6 @@ if (i == 1){
 
 combined_cbg <- combined_cbg %>% 
   st_drop_geometry %>%
-  rename(pwsid = PWSID)  %>%
   write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems_area.csv')
 write_xlsx(combined_cbg, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/zc_dems_area.xlsx")
 
