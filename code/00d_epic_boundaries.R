@@ -86,21 +86,22 @@ cbg.shapes <- combined_cbg %>%
 
 loi.buffer <- combined_loi
 
-linking.list <- sf::st_intersects(cbg.shapes, sb_sf) %>%
+linking.list2 <- sf::st_intersects(cbg.shapes, sb_sf) %>%
   as.data.frame() %>%
   dplyr::rename(cbg_ID = row.id) %>%
-  dplyr::rename(shape_ID = col.id) %>%
+  dplyr::rename(newid = col.id) %>%
   dplyr::left_join(cbg.shapes %>% 
                      dplyr::select(cbg_ID, ID) %>%
                      sf::st_drop_geometry(),
-                   by = 'cbg_ID') %>%
+                   by = 'cbg_ID') 
+
+linking.list3 <- linking.list2 %>%
   dplyr::left_join(loi.buffer %>%
                      dplyr::select(shape_ID, newid, pwsid) %>%
                      sf::st_drop_geometry(),
-                   by = 'shape_ID') %>%
-  dplyr::select(-cbg_ID)
+                   by = 'newid') 
 
-linking.list <- linking.list %>%
+linking.list <- linking.list3 %>%
   select(ID, pwsid) %>%
   drop_na(pwsid) %>%
   distinct() 
@@ -116,8 +117,7 @@ cbg_and_pwsid <- left_join(combined_cbg, linking.list, by = 'ID', relationship =
 cbg_and_pwsid <- cbg_and_pwsid %>% 
   st_drop_geometry %>%
   write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems_area.csv')
-# Too many observations for XLSX
-#write_xlsx(cbg_and_pwsid, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems_area.xlsx")
+write_xlsx(cbg_and_pwsid, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_dems_area.xlsx")
 
 
 combined_loi <- combined_loi %>% 
