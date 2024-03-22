@@ -29,7 +29,7 @@ output_dir <- 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)
 # Six Year Review 3
 ################################################################################
 
-syr3 <- load(paste0(syr_dir,"syr3.RData"))
+load(paste0(syr_dir,"syr3.RData"))
 
 # Tabulate Analyte Names
 syr3 %>%
@@ -41,9 +41,14 @@ syr3 %>%
     cumuPer = round(cumsum(freq = n / sum(n)), 3)) %>%
   print(n = 120)
 
+#write.csv(syr3, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/mdi/syr/syr3.csv", row.names=FALSE, na="")
+
+
 # filter out DBPs and bacterial samples 
 dbp3 <- syr3 %>%  
-    filter(analyte_name == c("TTHM","HAA5")) 
+    filter(analyte_name == c("TTHM","TOTAL HALOACETIC ACIDS (HAA5)",
+                             "TRICHLOROACETIC ACID",  "MONOBROMOACETIC ACID","MONOCHLOROACETIC ACID","DICHLOROACETIC ACID","DIBROMOACETIC ACID",
+                             "CHLOROFORM","BROMOFORM","BROMODICHLOROMETHANE","DIBROMOCHLOROMETHANE")) 
 
 bact3 <- syr3 %>%  
   filter(analyte_name == c("COLIFORM (TCR)","E. COLI","HETEROTROPHIC BACTERIA (HPC OR SPC)")) 
@@ -55,10 +60,10 @@ rm(syr3)
 # Six Year Review 4
 ################################################################################
 
-syr4 <- load(paste0(syr_dir,"syr4.RData"))
+load(paste0(syr_dir,"syr4.RData"))
 
 # Tabulate Analyte Names
-syr4 %>%
+data %>%
   group_by(analyte_name) %>%
   summarise(n = n()) %>%
   mutate(
@@ -68,14 +73,17 @@ syr4 %>%
   print(n = 120)
 
 # filter out DBPs and bacterial samples 
-dbp4 <- syr4 %>%  
-  filter(analyte_name == c("TTHM","TOTAL HALOACETIC ACIDS (HAA5)")) 
+dbp4 <- data %>%  
+  filter(analyte_name == c("TTHM","TOTAL HALOACETIC ACIDS (HAA5)",
+                           "TRICHLOROACETIC ACID",  "MONOBROMOACETIC ACID","MONOCHLOROACETIC ACID","DICHLOROACETIC ACID","DIBROMOACETIC ACID",
+                           "CHLOROFORM","BROMOFORM","BROMODICHLOROMETHANE","DIBROMOCHLOROMETHANE")) 
 
-bact4 <- syr4 %>%  
+
+bact4 <- data %>%  
   filter(analyte_name == c("COLIFORM (TCR)","E. COLI","HETEROTROPHIC BACTERIA (HPC OR SPC)")) 
 
 # clear space 
-rm(syr4)  
+rm(data)  
 
 
 ################################################################################
@@ -104,8 +112,8 @@ rm(dbp3, bact3, dbp4, bact4) # clear space
 ################################################################################
 
 
-# write.csv(bact, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/6yr review/processed/syr_col.csv", row.names=FALSE)
-# write.csv(dbp, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/6yr review/processed/syr_dbp.csv", row.names=FALSE)
+write.csv(bact, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/6yr review/processed/syr_col.csv", row.names=FALSE)
+write.csv(dbp, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/6yr review/processed/syr_dbp.csv", row.names=FALSE)
 
 ################################################################################
 # Generate Indicators 

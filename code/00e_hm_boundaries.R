@@ -2,7 +2,7 @@
 
 ###############################################################################
 # Load Shapefile of Counties Served by PWSIDs 
-# National Center for Environemental Economics 
+# National Center for Environmental Economics 
 # Last edited 9/18/23
 ###############################################################################
 
@@ -17,8 +17,11 @@
 ###############################################################################
 
 #TB directory 
-my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
+#my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
+#setwd(paste0(my_path))
 
+#WA
+my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
 setwd(paste0(my_path))
 
 library(devtools)
@@ -35,7 +38,7 @@ lapply(list.of.packages, library, character.only = TRUE)
 ###############################################################################
 
 #sb_hm <- sf::st_read('Data/PWS_121423.gdb')
-sb_hm_shp <- sf::st_read("Data/no_zm_boundaries/US_PWS_Draft.shp")
+sb_hm_shp <- sf::st_read("data/hall_murray_final/Service_Area_Boundaries.geojson")
 
 sb_hm_shp  <- sb_hm_shp %>%
   st_make_valid() %>%
@@ -43,24 +46,26 @@ sb_hm_shp  <- sb_hm_shp %>%
 
 ## The following just checks that all the geometries are valid 
 
-# sb_hm_shp  <- sb_hm_shp %>%
-#   mutate(valid_id = case_when(
-#     st_is_valid(sb_hm_shp$geometry) == TRUE ~ T,
-#     TRUE ~ F
-#   ))
-# 
-# valid <- sb_hm_shp %>%
-#   filter(valid_id == TRUE)
-# 
-# not_valid <- sb_hm_shp %>%
-#   filter(valid_id == FALSE)
+ sb_hm_shp  <- sb_hm_shp %>%
+   mutate(valid_id = case_when(
+     st_is_valid(sb_hm_shp$geometry) == TRUE ~ T,
+     TRUE ~ F
+   ))
+ 
+ valid <- sb_hm_shp %>%
+   filter(valid_id == TRUE)
+ 
+ not_valid <- sb_hm_shp %>%
+   filter(valid_id == FALSE)
 
-# not_valid <- write.csv(not_valid, 'Data/hm_nonvalid_polyg.csv')
+ not_valid <- write.csv(not_valid, 'Data/hm_nonvalid_polyg.csv')
 
 sb_hm_val <- sb_hm_shp %>%
   st_transform(crs = 4326) %>%
   dplyr::mutate(newid = row_number()) %>%
-  filter(pwsid_fina != "DE0000825") #This is the problematic PWSID that gives an error in EJfunction
+  filter(valid_id == TRUE)
+
+#  filter(pwsid != "DE0000825") #This is the problematic PWSID that gives an error in EJfunction
 
 # Double check only multipolygons are present
 
@@ -76,14 +81,14 @@ unique(gts)
 # Service areas Hall & Murray - EJSB Run
 ###############################################################################
 
-chunks <- 28
+chunks <- 43
 chunk_size <- 1000
-hm_list <- split(sb_hm_val, rep(1:28, each = 1000, length.out = nrow(sb_hm_val)))
+hm_list <- split(sb_hm_val, rep(1:43, each = 1000, length.out = nrow(sb_hm_val)))
 results_list <- list()
 
 # Call modified EJfunction over each chunk of data
 
-for (i in 1:28) {
+for (i in 1:43) {
   result <- EJfunction(LOI_data = hm_list[[i]], data_year = 2021, buffer = 0, raster = T)
   results_list[[i]] <- result
 }
@@ -91,7 +96,7 @@ for (i in 1:28) {
 # saveRDS(cbg_df, file = "Data/cbg_df_ejscreen.rds")
 
 # Need to combine all of the USGS and CBG files into one
-for (i in 1:28) {
+for (i in 1:43) {
   EJ.loi.data <- results_list[[i]]$EJ.loi.data
   EJ.cbg.data <- results_list[[i]]$EJ.cbg.data
   loi_df <- EJ.loi.data$LOI_radius_2021_0mi
@@ -126,30 +131,32 @@ linking.list2 <- sf::st_intersects(cbg.shapes, sb_hm_val) %>%
 
 linking.list3 <- linking.list2 %>%
   dplyr::left_join(loi.buffer %>%
-                     dplyr::select(shape_ID, newid, pwsid_fina) %>%
+                     dplyr::select(shape_ID, newid, pwsid) %>%
                      sf::st_drop_geometry(),
                    by = 'newid') 
 
 linking.list <- linking.list3 %>%
-  select(ID, pwsid_fina) %>%
-  drop_na(pwsid_fina) %>%
+  select(ID, pwsid) %>%
+  drop_na(pwsid) %>%
   distinct() 
 
 cbg_and_pwsid <- left_join(combined_cbg, linking.list, by = 'ID', relationship = "many-to-many") %>%
-  distinct() %>%
-  rename(pwsid = pwsid_fina)
+  distinct() 
+
+
+
 
 
 cbg_and_pwsid <- cbg_and_pwsid %>% 
   st_drop_geometry %>%
-  write_csv( 'Data/demographics/hm_dems_area.csv')
+  write_csv( 'data/demographics/hm_dems_area_final.csv')
 
 combined_loi <- combined_loi %>% 
   st_drop_geometry %>%
-  rename(pwsid = pwsid_fina) %>%
-  write_csv( 'Data/demographics/hm_dems.csv') 
+  write_csv( 'data/demographics/hm_dems_final.csv') 
 
 linking.list <- linking.list %>% 
-  write_csv( 'Data/demographics/hm_cbg_links.csv')
-write_xlsx(combined_loi, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/data/demographics/epic_cbg_links.xlsx")
+  write_csv( 'data/demographics/hm_cbg_links_final.csv')
+
+
 

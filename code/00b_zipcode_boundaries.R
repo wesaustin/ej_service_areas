@@ -68,6 +68,8 @@ for(i in 1:length(zip_links)){
   unlink(temp)
 }
 
+ucmr5 <- read_csv("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/ucmr/zipcode_areas/ucmr5.csv")
+
 # Import SDWIS 
 sdwis <- read.csv("C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/sdwis/geographic_areas_v2.csv")  %>% 
   clean_names()   %>% 
@@ -102,11 +104,18 @@ zipcodeboundaries <- st_read("C:/Users/gaustin/OneDrive - Environmental Protecti
 
 st_write(zipcodeboundaries, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ZIP_Codes_Served/UCMR_3_5/generated_boundaries_using_zip_codes.shp")
 
+# For Elaine Hill
+#st_write(zipcodeboundaries, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/exports/zipcodes/generated_boundaries_using_zip_codes.shp")
+
+zipcodes %>%
+  write_csv( 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/exports/zipcodes/pwsid_zip_link.csv')
+write_xlsx(zipcodes, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/exports/zipcodes/pwsid_zip_link.xlsx")
+
+
 
 ################################################################################
 # Load the Zipcode layer just produced
 ################################################################################
-
 
 zipcodeboundaries<- st_read( "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ZIP_Codes_Served/UCMR_3_5/generated_boundaries_using_zip_codes.shp") %>%
   st_transform(crs = 4326) %>%
