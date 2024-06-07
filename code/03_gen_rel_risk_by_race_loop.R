@@ -46,7 +46,7 @@ getwd()
 
 boundary = c("epic", "usgs", "zc", "county", "hm")
 
-indicator = c('hb', 'lcr', 'pfas', 'dbp', 'tcr')
+indicator = c('hb', 'lcr', 'pfas', 'dbp', 'tcr', 'ars', 'nitrate')
 
 ################################################################################
 ## Creating data frames for each racial category
@@ -78,9 +78,15 @@ for (b in boundary) {
   tcr_vio <- readRDS(paste0('data/combined/pwsid/tcr_vio_',b ,'.rds')) %>%
     mutate(total_violations = detection_share)
   
-  data_list <- list(hb_vio, lcr_vio, pfas_vio, dbp_vio, tcr_vio)
+  ars_vio <- readRDS(paste0('data/combined/pwsid/ars_vio_',b ,'.rds')) %>%
+    mutate(total_violations = arsenic)
   
-  my_df <- data.frame(race_cat = c("amer_ind", "asian", "black", "hisp", "pac_isl", "poc_risk"))
+  nitrate_vio <- readRDS(paste0('data/combined/pwsid/nitrate_vio_',b ,'.rds')) %>%
+    mutate(total_violations = nitrate)
+  
+  data_list <- list(hb_vio, lcr_vio, pfas_vio, dbp_vio, tcr_vio, ars_vio, nitrate_vio)
+  
+  my_df <- data.frame(race_cat = c("amer_ind", "asian", "black", "hisp", "pac_isl", "poc_risk", "lowinc"))
 
 for (j in 1:length(data_list)) {
   
@@ -105,7 +111,12 @@ for (j in 1:length(data_list)) {
     mutate(asian_risk = weighted.mean(total_violations, asian_served, na.rm= TRUE)) %>% #asian pop weight
     mutate(pac_isl_risk = weighted.mean(total_violations, pac_isl_served, na.rm= TRUE)) %>% # pacific islander
     mutate(hispanic_risk = weighted.mean(total_violations, hispanic_served, na.rm= TRUE)) %>% # hispanic
-    mutate(nhw_risk = weighted.mean(total_violations, nhw_served, na.rm= TRUE)) #non-hispanic white
+    mutate(nhw_risk = weighted.mean(total_violations, nhw_served, na.rm= TRUE)) %>%   #non-hispanic white
+    mutate(highinc = (1-lowinc)) %>% #create high income category
+    mutate(highinc_served = highinc*pop_served) %>% #Find total population served in each category
+    mutate(lowinc_served = lowinc*pop_served) %>%
+    mutate(highinc_risk = weighted.mean(total_violations, highinc_served, na.rm= TRUE)) %>% #High income weight
+    mutate(lowinc_risk = weighted.mean(total_violations, lowinc_served, na.rm= TRUE)) #low income weight
   
   
   amer_ind = as.numeric(rel_risk[1, "amer_ind_risk"]) / as.numeric(rel_risk[1, "nhw_risk"])
@@ -114,8 +125,10 @@ for (j in 1:length(data_list)) {
   hisp = as.numeric(rel_risk[1, "hispanic_risk"]) / as.numeric(rel_risk[1, "nhw_risk"])
   pac_isl = as.numeric(rel_risk[1, "pac_isl_risk"]) / as.numeric(rel_risk[1, "nhw_risk"])
   minor_risk = as.numeric(rel_risk[1, "minor_risk"]) / as.numeric(rel_risk[1, "nhw_risk"])
+  lowinc_risk = as.numeric(rel_risk[1, "lowinc_risk"]) / as.numeric(rel_risk[1, "highinc_risk"])
   
-  risks <- data.frame(risk = c(amer_ind, asian, black, hisp, pac_isl, minor_risk))
+  
+  risks <- data.frame(risk = c(amer_ind, asian, black, hisp, pac_isl, minor_risk, lowinc_risk))
   
   my_df <- cbind(my_df, risks)
   
@@ -129,7 +142,7 @@ for (j in 1:length(data_list)) {
   
   }
 
-write.csv(my_df, file = paste0("Data/rel_risk/rel_risk_by_race_", b, ".csv"))
+write.csv(my_df, file = paste0("Data/rel_risk/rel_risk_all_subpop_", b, ".csv"))
 
 my_df <- my_df %>% 
   mutate(boundary = as.factor(b))
@@ -138,10 +151,10 @@ all_risk <- bind_rows(all_risk, my_df)
 
 }
 
-write.csv(all_risk, file = "Data/rel_risk/rel_risk_by_race_all.csv")
+write.csv(all_risk, file = "Data/rel_risk/rel_risk_all_subpop.csv")
 
 all_risk <- all_risk %>%
   group_by(race_cat)
 
-all_risk <- read.csv("Data/rel_risk/rel_risk_by_race_all.csv") 
+all_risk <- read.csv("Data/rel_risk/rel_risk_all_subpop.csv") 
 
