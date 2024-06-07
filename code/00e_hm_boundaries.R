@@ -27,7 +27,7 @@ setwd(paste0(my_path))
 library(devtools)
 #install_github('USEPA/EJSCREENbatch', force = TRUE)
 
-list.of.packages <- c("janitor","writexl","readxl","tigris","leaflet","sf","tidyverse","EJSCREENbatch")
+list.of.packages <- c("janitor","writexl","readxl","tigris","leaflet","sf","tidyverse","EJSCREENbatch","exactextractr")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, repos = "http://cran.rstudio.com/")
 lapply(list.of.packages, library, character.only = TRUE)
@@ -38,13 +38,20 @@ lapply(list.of.packages, library, character.only = TRUE)
 ###############################################################################
 
 #sb_hm <- sf::st_read('Data/PWS_121423.gdb')
-sb_hm_shp <- sf::st_read("data/hall_murray_final/Service_Area_Boundaries.geojson")
+#sb_hm_shp <- sf::st_read("data/hall_murray_final/Service_Area_Boundaries/CWS_032424.shp")
+sb_hm_shp <- sf::st_read("data/hall_murray_final/Final.shp")
+#sb_hm_shp <- sf::st_read("data/hall_murray_final/Water_System_Boundaries.geojson")
+#st_write(st_as_sf(sb_hm_shp), "data/hall_murray_final/Final_check.shp")
+
+#sb_hm_shp$geometry <- st_cast(sb_hm_shp$geometry, "MULTIPOLYGON")
+
 
 sb_hm_shp  <- sb_hm_shp %>%
   st_make_valid() %>%
   clean_names()
 
 ## The following just checks that all the geometries are valid 
+  # 6/4/2024 latest version: all 44,415 polygons are valid!
 
  sb_hm_shp  <- sb_hm_shp %>%
    mutate(valid_id = case_when(
@@ -58,9 +65,10 @@ sb_hm_shp  <- sb_hm_shp %>%
  not_valid <- sb_hm_shp %>%
    filter(valid_id == FALSE)
 
- not_valid <- write.csv(not_valid, 'Data/hm_nonvalid_polyg.csv')
+ not_valid <- write.csv(not_valid, 'data/hall_murray_final/hm_nonvalid_polyg.csv')
 
-sb_hm_val <- sb_hm_shp %>%
+ sb_hm_shp <- sb_hm_shp %>%
+  filter(!st_is_empty(geometry)) %>%
   st_transform(crs = 4326) %>%
   dplyr::mutate(newid = row_number()) %>%
   filter(valid_id == TRUE)
@@ -69,7 +77,7 @@ sb_hm_val <- sb_hm_shp %>%
 
 # Double check only multipolygons are present
 
-gts <- st_geometry_type(sb_hm_val)
+gts <- st_geometry_type(sb_hm_shp)
 unique(gts)
 
 # sb_hm_val <- st_cast(sb_hm_val, "MULTIPOLYGON") %>%
@@ -77,18 +85,24 @@ unique(gts)
 #   st_make_valid() %>%
 #   mutate(dim = st_dimension(sb_hm_val))
 
+# sb_hm_val<- filter(sb_hm_val, !sf::st_is_empty(geometry))
+# sb_hm_val_v2 <- sb_hm_val[complete.cases(sb_hm_val), ]
+# null_geoms <- st_is_empty(sb_hm_shp)
+# summary(sb_hm_val)
+
+
 ###############################################################################
 # Service areas Hall & Murray - EJSB Run
 ###############################################################################
 
-chunks <- 43
+chunks <- 45
 chunk_size <- 1000
-hm_list <- split(sb_hm_val, rep(1:43, each = 1000, length.out = nrow(sb_hm_val)))
+hm_list <- split(sb_hm_shp, rep(1:45, each = 1000, length.out = nrow(sb_hm_shp)))
 results_list <- list()
 
 # Call modified EJfunction over each chunk of data
 
-for (i in 1:43) {
+for (i in 1:45) {
   result <- EJfunction(LOI_data = hm_list[[i]], data_year = 2021, buffer = 0, raster = T)
   results_list[[i]] <- result
 }
@@ -96,7 +110,7 @@ for (i in 1:43) {
 # saveRDS(cbg_df, file = "Data/cbg_df_ejscreen.rds")
 
 # Need to combine all of the USGS and CBG files into one
-for (i in 1:43) {
+for (i in 1:45) {
   EJ.loi.data <- results_list[[i]]$EJ.loi.data
   EJ.cbg.data <- results_list[[i]]$EJ.cbg.data
   loi_df <- EJ.loi.data$LOI_radius_2021_0mi

@@ -53,6 +53,15 @@ dbp3 <- syr3 %>%
 bact3 <- syr3 %>%  
   filter(analyte_name == c("COLIFORM (TCR)","E. COLI","HETEROTROPHIC BACTERIA (HPC OR SPC)")) 
 
+
+# filter out SYR3 arsenic and nitrate samples 
+arsenic <- syr3 %>%  
+  filter(analyte_name == c("ARSENIC"))  %>%
+  rename(analyte_code = analyte_id) 
+nitrate <- syr3 %>%  
+  filter(analyte_name == c("NITRATE")) %>%
+  rename(analyte_code = analyte_id) 
+
 # clear memory space 
 rm(syr3)
 
@@ -114,6 +123,11 @@ rm(dbp3, bact3, dbp4, bact4) # clear space
 
 write.csv(bact, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/6yr review/processed/syr_col.csv", row.names=FALSE)
 write.csv(dbp, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/6yr review/processed/syr_dbp.csv", row.names=FALSE)
+
+write.csv(arsenic, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/6yr review/processed/syr3_arsenic.csv", row.names=FALSE)
+write.csv(nitrate, "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/DWDB/Data/6yr review/processed/syr3_nitrate.csv", row.names=FALSE)
+
+
 
 ################################################################################
 # Generate Indicators 
