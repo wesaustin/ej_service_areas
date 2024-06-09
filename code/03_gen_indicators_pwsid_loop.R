@@ -60,7 +60,7 @@ HB_vio <- read.csv("Data/health_violations_2015.csv")
 for (i in boundary) {
   
   # Load the demographic datasets by boundary
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("state")) %>%
     rename_with(
@@ -113,7 +113,7 @@ lcr_vio <- readRDS("Data/lcr_violations.rds") %>%
 
 for (i in boundary) {
   
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("state")) %>%
     rename_with(
@@ -163,7 +163,7 @@ pfas_vio <- read.csv("Data/indicators_pfas.csv") %>%
 
 for (i in boundary) {
   
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("state")) %>%
     rename_with(
@@ -208,7 +208,7 @@ dbp_vio <- read.csv("Data/indicator_dbp_v2.csv") %>%
 
 for (i in boundary) {
   
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("state")) %>%
     rename_with(
@@ -252,7 +252,7 @@ tcr_vio <- read.csv("Data/indicator_tcr.csv") %>%
 
 for (i in boundary) {
   
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("state")) %>%
     rename_with(
@@ -283,3 +283,100 @@ for (i in boundary) {
 }
 
 rm(tcr_vio)
+
+################################################################################
+## Arsenic 
+################################################################################
+
+# Load base indicator violations data
+
+# i = "usgs"
+
+ars_vio <- read.csv("Data/indicator_arsenic.csv") 
+
+# Create loop function to call each boundary and combine with indicator
+
+for (i in boundary) {
+  
+  # Load the demographic datasets by boundary
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems.csv")) %>%
+    clean_names() %>%
+    dplyr::select(-ends_with("state")) %>%
+    rename_with(
+      ~ case_when(
+        . == "lowincpct" ~ "lowinc",
+        . == "population_served_count" | . == "population" | . == "tpopsrv" ~ "pop_served",
+        . == "id" ~ "ID",
+        TRUE ~ . 
+      )
+    ) %>%
+    filter(!is.na(minorpct)) %>%
+    mutate_at(cols_num, as.numeric) 
+  
+  
+  # Left join the boundary to violations data to get cbg-level data
+  cbg_vio <- left_join(pwsid_dem, ars_vio, by = "pwsid", relationship = "many-to-many") 
+  
+  # Find the Duplicated Columns
+  duplicated_columns <- duplicated(t(cbg_vio))
+  
+  # Show the Names of the Duplicated Columns
+  colnames(cbg_vio[duplicated_columns])
+  
+  # Remove the Duplicated Columns
+  cbg_vio <- cbg_vio[!duplicated_columns]
+  
+  #Save the dataset
+  saveRDS(cbg_vio, file = paste0("Data/combined/pwsid/ars_vio_", i, ".rds"))
+  
+}
+
+rm(ars_vio)
+
+################################################################################
+## Arsenic 
+################################################################################
+
+# Load base indicator violations data
+
+nitrate_vio <- read.csv("Data/indicator_nitrate.csv") 
+
+# Create loop function to call each boundary and combine with indicator
+
+for (i in boundary) {
+  
+  # Load the demographic datasets by boundary
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems.csv")) %>%
+    clean_names() %>%
+    dplyr::select(-ends_with("state")) %>%
+    rename_with(
+      ~ case_when(
+        . == "lowincpct" ~ "lowinc",
+        . == "population_served_count" | . == "population" | . == "tpopsrv" ~ "pop_served",
+        . == "id" ~ "ID",
+        TRUE ~ . 
+      )
+    ) %>%
+    filter(!is.na(minorpct)) %>%
+    mutate_at(cols_num, as.numeric) 
+  
+  
+  # Left join the boundary to violations data to get cbg-level data
+  cbg_vio <- left_join(pwsid_dem, nitrate_vio, by = "pwsid", relationship = "many-to-many") 
+  
+  # Find the Duplicated Columns
+  duplicated_columns <- duplicated(t(cbg_vio))
+  
+  # Show the Names of the Duplicated Columns
+  colnames(cbg_vio[duplicated_columns])
+  
+  # Remove the Duplicated Columns
+  cbg_vio <- cbg_vio[!duplicated_columns]
+  
+  #Save the dataset
+  saveRDS(cbg_vio, file = paste0("Data/combined/pwsid/nitrate_vio_", i, ".rds"))
+  
+}
+
+rm(nitrate_vio)
+

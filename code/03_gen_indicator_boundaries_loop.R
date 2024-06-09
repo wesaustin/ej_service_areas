@@ -1,7 +1,7 @@
 ################################################################################
 ## Loop functions to generate indicator datasets by indicator
 ## NCEE EPA 
-## Last edited: 11/28/2023
+## Last edited: 6/7/2024
 ################################################################################
 
 # Load packages
@@ -45,7 +45,7 @@ getwd()
 
 boundary <- c("epic", "hm")
 
-boundary <- "hm"
+# boundary <- "hm"
 
 # Load base indicator violations data
 
@@ -56,7 +56,7 @@ HB_vio <- read.csv("Data/health_violations_2015.csv")
 for (i in boundary) {
   
   # Load the demographic datasets by boundary
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("_us"), -ends_with("state")) %>%
     rename_with(
@@ -107,7 +107,7 @@ lcr_vio <- readRDS("Data/lcr_violations.rds") %>%
 
 for (i in boundary) {
   
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("_us"), -ends_with("state")) %>%
     rename_with(
@@ -157,7 +157,7 @@ for (i in boundary) {
   
   #i = "county"
   
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("_us"), -ends_with("state")) %>%
     rename_with(
@@ -199,7 +199,7 @@ dbp_vio <- read.csv("Data/indicator_dbp_v2.csv") %>%
 
 for (i in boundary) {
   
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("_us"), -ends_with("state")) %>%
     rename_with(
@@ -230,17 +230,17 @@ for (i in boundary) {
 rm(dbp_vio)
 
 ################################################################################
-## Cumulative DBP
+## TCR detection shares
 ################################################################################
 
-# Load DBP concentrations data
+# Load tcr concentrations data
 
 tcr_vio <- read.csv("Data/indicator_tcr.csv") %>%
   clean_names()
 
 for (i in boundary) {
   
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area_final.csv")) %>%
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("_us"), -ends_with("state")) %>%
     rename_with(
@@ -270,3 +270,89 @@ for (i in boundary) {
 }
 
 rm(tcr_vio)
+
+################################################################################
+## Arsenic concentrations
+################################################################################
+
+# Load ars concentrations data
+
+ars_vio <- read.csv("Data/indicator_arsenic.csv") %>%
+  clean_names()
+
+for (i in boundary) {
+  
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area.csv")) %>%
+    clean_names() %>%
+    dplyr::select(-ends_with("_us"), -ends_with("state")) %>%
+    rename_with(
+      ~ case_when(
+        . == "lowincpct" ~ "lowinc",
+        . == "population_served_count" ~ "pop_served",
+        . == "id" ~ "ID",
+        TRUE ~ . 
+      )
+    )
+  
+  cbg_vio <- left_join(pwsid_dem, ars_vio, by = "pwsid", relationship = "many-to-many") 
+  
+  
+  # Find the Duplicated Columns
+  duplicated_columns <- duplicated(t(cbg_vio))
+  
+  # Show the Names of the Duplicated Columns
+  colnames(cbg_vio[duplicated_columns])
+  
+  # Remove the Duplicated Columns
+  cbg_vio <- cbg_vio[!duplicated_columns]
+  
+  #Save the dataset
+  saveRDS(cbg_vio, file = paste0("Data/combined/area/arsenic_vio_", i, "_area.rds"))
+  
+}
+
+rm(ars_vio)
+
+################################################################################
+## Nitrate concentrations
+################################################################################
+
+# Load nitrate concentrations data
+
+nitrate_vio <- read.csv("Data/indicator_nitrate.csv") %>%
+  clean_names()
+
+for (i in boundary) {
+  
+  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems_area.csv")) %>%
+    clean_names() %>%
+    dplyr::select(-ends_with("_us"), -ends_with("state")) %>%
+    rename_with(
+      ~ case_when(
+        . == "lowincpct" ~ "lowinc",
+        . == "population_served_count" ~ "pop_served",
+        . == "id" ~ "ID",
+        TRUE ~ . 
+      )
+    )
+  
+  cbg_vio <- left_join(pwsid_dem, nitrate_vio, by = "pwsid", relationship = "many-to-many") 
+  
+  
+  # Find the Duplicated Columns
+  duplicated_columns <- duplicated(t(cbg_vio))
+  
+  # Show the Names of the Duplicated Columns
+  colnames(cbg_vio[duplicated_columns])
+  
+  # Remove the Duplicated Columns
+  cbg_vio <- cbg_vio[!duplicated_columns]
+  
+  #Save the dataset
+  saveRDS(cbg_vio, file = paste0("Data/combined/area/nitrate_vio_", i, "_area.rds"))
+  
+}
+
+rm(nitrate_vio)
+
+
