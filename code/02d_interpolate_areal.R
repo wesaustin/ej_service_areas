@@ -21,6 +21,48 @@ pacman::p_load(
 
 save_here <- "Data/hm_interp/"
 
+# sb_hm_shp <- sf::st_read("Data/hall_murray/Water_System_Boundaries.gpkg") 
+# 
+# data.tog <- readRDS("Data/data.tog.rds") %>%
+#   st_as_sf() %>%
+#   st_transform(crs = st_crs(sb_hm_shp))
+# 
+# st_crs(data.tog)
+# st_crs(sb_hm_shp)
+
+# data.nog <- data.tog %>%
+#   st_drop_geometry() %>%
+#   mutate(ID = as.character(ID), 
+#          ID = str_pad(ID, 12, "left", pad = "0"))
+# 
+# ext <- names(data.nog[, c(4)])
+# 
+# int <- names(data.nog[, c(5:56)])
+# 
+# # Need to make data planar for areal interpolation
+# sb_hm_sim  <- sb_hm_shp %>% 
+#   st_make_valid() %>%
+#   st_simplify %>% 
+#   st_transform(crs = 3857)
+# 
+# data.pl <- data.tog %>%
+#   st_transform(crs = 3857)
+
+# data.pl <- spTransform(data.tog, CRS("+proj=utm +zone=10 +datum=WGS84"))
+
+#Validation protocol
+areal::ar_validate(target = sb_hm_sim, source= data.pl, varList = int, verbose = TRUE)
+
+hm_interp <- areal::aw_interpolate(sb_hm_sim,
+                                   tid = "PWSID",
+                                   sid = 'ID',
+                                   source = data.pl,
+                                   weight = "sum",
+                                   output = 'sf',
+                                   extensive = "ACSTOTPOP",
+                                   intensive = int)
+
+
 target <- sf::st_read("Data/hall_murray/Water_System_Boundaries.gpkg") 
 
 source <- readRDS("Data/data.tog.rds") %>%
@@ -79,38 +121,43 @@ interpolate <- function (source, sid, target, tid, ext, int) {
   target_area <- left_join(target_area, intersect_area, by = tid, relationship="many-to-many") %>% #Merge by id no, relationship many
     mutate(target_coverage = as.numeric(intersect_area/tid_area)) # Calculate % area of each source polygon to the overall target area
   
-  intersect <- left_join(intersect, target_area, by = c(tid, sid), relationship="many-to-many") %>%
+  intersect_w <- left_join(intersect, target_area, by = c(tid, sid), relationship="many-to-many") %>%
     left_join(source_area, by = c(sid, tid), relationship="many-to-many") %>%
     rowwise %>%
-    mutate(across(all_of(int), ~ .x*target_coverage))  %>%
-    mutate(across(all_of(ext), ~ .x*source_coverage))  
+    mutate(across(all_of(int), ~ .x*target_coverage))  %>% #multiply intensive vars by target area
+    mutate(across(all_of(ext), ~ .x*source_coverage)) %>% # multiply extensive vars by source area
+    st_drop_geometry() # don't need geometry anymore
+  
+  # Use percent coverage from source and target data intersect to create pwsid level weighted interpolation
   
   target_dat <- intersect %>%
-    group_by(c(tid)) %>%
-    mutate(across(all_of(ext), ~mean(.x, na.rm=T))) %>%
+    group_by(pick(tid)) %>%
+    mutate(across(all_of(ext), ~mean(.x, na.rm=T))) %>% # average 
     mutate(across(all_of(int), ~mean(.x, na.rm=T))) %>%
-    mutate(sids = paste(c(sid), sep = ", ")) %>%
-    ungroup() 
-  
+    mutate(sids = paste(pick(sid), collapse = ", "))%>%  # record CBGs contributing to data
+    ungroup 
+
   target_dat <- target_dat %>%
-    distinct(pick(tid), .keep_all =T)                   # Using duplicated function
-  
-  source_dat <- intersect %>%
-    group_by(c(sid)) %>%
-    mutate(across(all_of(ext), ~mean(.x, na.rm=T))) %>%
-    mutate(across(all_of(int), ~mean(.x, na.rm=T))) %>%
-    mutate(tids = paste(c(tid), sep = ", ")) %>%
-    ungroup()
-  
-  source_dat <- source_dat %>%
-    distinct(pick(sid), .keep_all =T)                   # Using duplicated function
-  
-  
-}
+    distinct(pick(tid), .keep_all =T)   # select distinct tid's
+ }
 
 saveRDS(intersect, file = paste0(save_here, "intersect.rds"))
 
+saveRDS(intersect_w, file = paste0(save_here, "intersect_weighted.rds"))
+
 saveRDS(target_dat, file = paste0(save_here,"target_dat.rds"))
+
+#create data frame with single CBG (if necessary)
+
+source_dat <- intersect %>%
+  group_by(c(sid)) %>%
+  mutate(across(all_of(ext), ~mean(.x, na.rm=T))) %>%
+  mutate(across(all_of(int), ~mean(.x, na.rm=T))) %>%
+  mutate(tids = paste(pick(tid), sep = ", ")) %>%
+  ungroup()
+
+source_dat <- source_dat %>%
+  distinct(pick(sid), .keep_all =T)                   # Using duplicated function
 
 saveRDS(source_dat, file = paste0(save_here,"source_dat.rds"))
 
@@ -119,3 +166,5 @@ interpolate(source=data.tog, sid = "ID", target=sb_hm_shp, tid="PWSID", ext="ACS
 
 
 rm(taget_area, source_area, intersect_area)
+
+
