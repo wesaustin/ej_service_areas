@@ -21,48 +21,6 @@ pacman::p_load(
 
 save_here <- "Data/hm_interp/"
 
-# sb_hm_shp <- sf::st_read("Data/hall_murray/Water_System_Boundaries.gpkg") 
-# 
-# data.tog <- readRDS("Data/data.tog.rds") %>%
-#   st_as_sf() %>%
-#   st_transform(crs = st_crs(sb_hm_shp))
-# 
-# st_crs(data.tog)
-# st_crs(sb_hm_shp)
-
-# data.nog <- data.tog %>%
-#   st_drop_geometry() %>%
-#   mutate(ID = as.character(ID), 
-#          ID = str_pad(ID, 12, "left", pad = "0"))
-# 
-# ext <- names(data.nog[, c(4)])
-# 
-# int <- names(data.nog[, c(5:56)])
-# 
-# # Need to make data planar for areal interpolation
-# sb_hm_sim  <- sb_hm_shp %>% 
-#   st_make_valid() %>%
-#   st_simplify %>% 
-#   st_transform(crs = 3857)
-# 
-# data.pl <- data.tog %>%
-#   st_transform(crs = 3857)
-
-# data.pl <- spTransform(data.tog, CRS("+proj=utm +zone=10 +datum=WGS84"))
-
-#Validation protocol
-areal::ar_validate(target = sb_hm_sim, source= data.pl, varList = int, verbose = TRUE)
-
-hm_interp <- areal::aw_interpolate(sb_hm_sim,
-                                   tid = "PWSID",
-                                   sid = 'ID',
-                                   source = data.pl,
-                                   weight = "sum",
-                                   output = 'sf',
-                                   extensive = "ACSTOTPOP",
-                                   intensive = int)
-
-
 target <- sf::st_read("Data/hall_murray/Water_System_Boundaries.gpkg") 
 
 source <- readRDS("Data/data.tog.rds") %>%
@@ -83,6 +41,7 @@ ext <- "ACSTOTPOP"
 int <- names(data.nog[, c(5:56)])
 
 rm(data.nog)
+
 
 
 interpolate <- function (source, sid, target, tid, ext, int) {
@@ -139,9 +98,17 @@ interpolate <- function (source, sid, target, tid, ext, int) {
 
   target_dat <- target_dat %>%
     distinct(pick(tid), .keep_all =T)   # select distinct tid's
- }
+  
+  return(list(intersect, target_dat))
 
-saveRDS(intersect, file = paste0(save_here, "intersect.rds"))
+}
+
+areal_int <- interpolate(source=source, sid = "ID", target=target, tid="PWSID", ext="ACSTOTPOP", int)
+
+saveRDS(areal_int, file = paste0(save_here, "areal_int.rds"))
+
+areal_int2 <- areal_int %>%
+  dplyr::select(-c(26:30))
 
 saveRDS(intersect_w, file = paste0(save_here, "intersect_weighted.rds"))
 
