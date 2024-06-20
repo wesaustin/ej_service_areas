@@ -43,7 +43,6 @@ int <- names(data.nog[, c(5:56)])
 rm(data.nog)
 
 
-
 interpolate <- function (source, sid, target, tid, ext, int) {
   
   # Find intersecting polygons
@@ -99,18 +98,31 @@ interpolate <- function (source, sid, target, tid, ext, int) {
   target_dat <- target_dat %>%
     distinct(pick(tid), .keep_all =T)   # select distinct tid's
   
-  return(list(intersect, target_dat))
-
+  
+  return(list(intersect, intersect_w, target_dat))
 }
 
 areal_int <- interpolate(source=source, sid = "ID", target=target, tid="PWSID", ext="ACSTOTPOP", int)
 
+intersect <- areal_int[[1]]
+
+intersect_w <- areal_int[[2]]
+
 saveRDS(areal_int, file = paste0(save_here, "areal_int.rds"))
 
 areal_int2 <- areal_int %>%
-  dplyr::select(-c(26:30))
+  dplyr::select(-c(26:30)) %>%
+  st_drop_geometry
+
+saveRDS(areal_int2, file = paste0(save_here, "hm_dems.rds"))
+
+write_csv(areal_int2, file = paste0(save_here, "hm_dems.csv"))
+
+saveRDS(intersect, file = paste0(save_here, "intersect.rds"))
 
 saveRDS(intersect_w, file = paste0(save_here, "intersect_weighted.rds"))
+
+saveRDS(intersect_w, file = paste0(save_here, "hm_dems_area.rds"))
 
 saveRDS(target_dat, file = paste0(save_here,"target_dat.rds"))
 
