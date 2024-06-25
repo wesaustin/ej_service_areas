@@ -6,12 +6,12 @@
 ################################################################################
 
 # NOTE : Color scheme 
-  # HB : Reds
-  # Copper : Greens
-  # Lead : Greys
-  # PFAS : PuRed
-  # DBT : Blues
-  # TCR : YlOrRd
+# HB : Reds
+# Copper : Greens
+# Lead : Greys
+# PFAS : PuRed
+# DBT : Blues
+# TCR : YlOrRd
 
 ################################################################################
 ## Load packages: 
@@ -63,10 +63,9 @@ plot_path <- "Plots/country/epic/"
 #Retreive census geography
 
 US_cbg <- tigris::block_groups(state = NULL, county = NULL, cb = TRUE, year = 2021) %>%
-  tigris::shift_geometry() %>% # this puts Alaska and Hawaii underneath the CUS
-
-
-st_crs(US_cbg)
+  tigris::shift_geometry()  # this puts Alaska and Hawaii underneath the CUS
+  
+  st_crs(US_cbg)
 
 #Limit to 50 states
 
@@ -170,9 +169,11 @@ summary(HB_vio_all$avg_vio_tract)
 HB_vio_plot <- ggplot() + 
   geom_sf(data = HB_vio_all, aes(fill = avg_cbg_vio, geometry = geometry), 
           color = NA) +
-  scale_fill_distiller(name = "Average violations\nper CBG\n(2015-2022)", palette = "Reds", 
-                       # direction = 1, limits=c(0,25), breaks = c(0,25), 
-                       # labels = c(0,">25"), 
+  scale_fill_distiller(name = "Health-based Violations\n(2015-2023)", palette = "Reds", 
+                       direction = 1, 
+                       # limits=c(0,10), 
+                       #breaks = c(0,10), 
+                       # labels = c(0,">10"), 
                        na.value = scales::alpha("#DCDCDC", 0.20)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
@@ -191,25 +192,38 @@ print(HB_vio_plot)
 
 dev.off()
 
+## Map with truncated values 
 
-# Map 2 : HB violations at tract
+hb_vio_trunc <- HB_vio_all %>%
+  mutate(cbg_vio_trunc = ifelse(avg_cbg_vio >10, 10, avg_cbg_vio))
 
-ggplot() + 
-  geom_sf(data = HB_vio_all, aes(fill = avg_vio_tract, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average violations\nper tract", palette = "Reds", direction = 1, limits=c(0,50), breaks = c(0,50), labels = c(0,">50"), na.value = scales::alpha("#DCDCDC", 0.5)) +
-  ggthemes::theme_map() + 
-  theme(legend.key.size = unit(0.5, 'cm'),legend.text = element_text(family = "serif"), legend.title = element_text(family = "serif", size = 8), legend.position = "right", legend.box.background = element_blank()) 
+HB_vio_plot <- ggplot() + 
+  geom_sf(data = hb_vio_trunc, aes(fill = cbg_vio_trunc, geometry = geometry), 
+          color = NA) +
+  scale_fill_distiller(name = "Health-based Violations\n(2015-2023)", palette = "Reds", 
+                       direction = 1, 
+                       limits=c(0,10), breaks = c(0,10), 
+                       labels = c(0,">10"), 
+                       na.value = scales::alpha("#DCDCDC", 0.20)) +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  coord_sf() +
+  theme_void() +
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
+        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+        legend.box.background = element_blank())  
 
+# Following saves as a png, but takes a minute; maintains the lack of boundaries  
 
-ggsave(filename = 'HB_vio_tract_US.png', path = plot_path,
-       scale = 1.5,
-       width = 7,
-       height = 5,
-       units = "in",
-       dpi = 300,
-       limitsize = FALSE)
+png(file = paste0(plot_path,"HB_vio_trunc_US.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 28,
+    bg = "transparent")
+
+print(HB_vio_plot)
+
+dev.off()
 
 rm(HB_vio_all, HB_vio_plot, cbg_HB_vio)
+
 
 ################################################################################
 ## LCR violations
@@ -220,17 +234,37 @@ cbg_lcr_vio <- read_rds("Data/combined/area/lcr_vio_epic_area.rds") #load lcr da
 # CBG
 
 cbg_lcr_vio <- cbg_lcr_vio %>%
+  mutate(ID=str_pad(ID, 12, pad="0")) %>%
+  mutate(ID = as.character(ID)) %>%
   group_by(ID) %>%
+  mutate(tids = paste(PWSID, sep = ", "))  %>%
   mutate(pb_vio_cbg = mean(pb_vio_count)) %>% #average number of lead violations per CBG
   mutate(cu_vio_cbg = mean(cu_vio_count)) %>% #average number of copper violations per CBG
   mutate(avg_pb_cbg = mean(avg_pb_level)) %>% #average lead levels per CBG
   mutate(avg_cu_cbg = mean(avg_cu_level)) %>% #average copper levels per CBG
   distinct(ID, .keep_all = TRUE)
 
+lcr_summary <- cbg_lcr_vio %>%
+  group_by(state_name) %>%
+  summarize(
+    quant25 = quantile(avg_pb_cbg, probs = .25),
+    median = median(avg_pb_cbg, na.rm = TRUE),
+    quant75 = quantile(avg_pb_cbg, probs = .75),
+    max = max(avg_pb_cbg)
+  ) %>%
+  arrange(desc(quant75))
+
+summary(cbg_lcr_vio$avg_pb_cbg)
+
+# Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+# 0.000000 0.002636 0.004313 0.014924 0.007520 6.289051 
+
+summary(cbg_lcr_vio$pb_vio_cbg)
+
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 0.000   0.000   0.000   1.201   1.000  35.000
+
 lcr_vio_all <- left_join(US_cbg_crop, cbg_lcr_vio) 
-
-st_as_sf(lcr_vio_all) #set as spatial object
-
 
 ################################################################################
 ## LCR violations Maps
@@ -249,10 +283,10 @@ gr_scale <- c(
   '#000000'
 )
 
-summary(cbg_lcr_vio$avg_pb_level) #distribution
+summary(lcr_vio_all$avg_pb_level) #distribution
 
 lcr_plot <- ggplot() + 
-  geom_sf(data = lcr_vio_all, aes(fill = avg_pb_level, geometry = geometry), color = NA) +
+  geom_sf(data = lcr_vio_all, aes(fill = avg_pb_cbg, geometry = geometry), color = NA) +
   scale_fill_gradientn(name = "90th Percentile\nLead levels\n(1991-2020)", colours = gr_scale, 
                        #  direction = 1, 
                        limits=c(0,0.015), breaks = c(0,0.005, 0.010, 0.015), 
@@ -273,17 +307,20 @@ print(lcr_plot)
 
 dev.off()
 
-# Lead violations count
+# Truncated values
+
+lcr_vio_trunc <- lcr_vio_all %>%
+  mutate(pb_lvl_trunc = ifelse(avg_pb_cbg >= 0.015, 0.015, avg_pb_cbg)) %>%
+  mutate(pb_ale_trunc = ifelse(pb_vio_cbg >= 5, 5, pb_vio_cbg))
 
 summary(lcr_vio_all$pb_vio_cbg) #distribution
 
-
-lead_vios_plot <- ggplot() + 
-  geom_sf(data = lcr_vio_all, aes(fill = pb_vio_cbg, geometry = geometry), color = NA) +
-  scale_fill_gradientn(name = "Lead Action Level\nExceedances\n(1991-2020)", colours = gr_scale, 
+pb_trunc_plot <- ggplot() + 
+  geom_sf(data = lcr_vio_trunc, aes(fill = pb_lvl_trunc, geometry = geometry), color = NA) +
+  scale_fill_gradientn(name = "Average lead\n90th percentile\nvalues\n(1991-2021)", colours = gr_scale, 
                        #  direction = 1, 
-                       limits=c(0,1), breaks = c(0, 1), 
-                       labels = c(0, ">1"),
+                       limits=c(0,0.015), breaks = c(0,0.005, 0.010, 0.015), 
+                       labels = c(0, 0.005, 0.010, ">0.015"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
@@ -292,63 +329,71 @@ lead_vios_plot <- ggplot() +
         legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"pb_vios_US.png"), 
+png(file = paste0(plot_path,"pb_trunc_US.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
-print(lead_vios_plot)
+print(pb_trunc_plot)
 
 dev.off()
 
+# ALEs
 
-rm(lcr_vio_all, cbg_lcr_vio, lcr_plot, lead_vios_plot)
+pb_ale_plot <- ggplot() + 
+  geom_sf(data = lcr_vio_trunc, aes(fill = pb_ale_trunc, geometry = geometry), color = NA) +
+  scale_fill_gradientn(name = "Lead Action Level\nExceedances\n(1991-2021)", colours = gr_scale, 
+                       #  direction = 1, 
+                       limits=c(0,5), breaks = c(0,5),
+                       labels = c(0, ">5"),
+                       na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  coord_sf() +
+  theme_void() +
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
+        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+        legend.box.background = element_blank()) 
+
+png(file = paste0(plot_path,"pb_ale_US.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 20,
+    bg = "transparent")
+
+print(pb_ale_plot)
+
+dev.off()
+
+rm(lcr_vio_all, cbg_lcr_vio, lcr_plot, pb_trunc_plot)
 
 ################################################################################
 ## PFAS violations
 ################################################################################
 
 cbg_pfas_vio <- read_rds("Data/combined/area/pfas_vio_epic_area.rds") %>%
-  mutate(ID = as.character(ID)) %>%
+  mutate(ID=str_pad(ID, 12, pad="0")) %>%
+  mutate(ID = as.character(ID)) %>% #load pfas data
   group_by(ID) %>%
-  mutate(cbg_det_share = mean(detection_share)) %>% #avg pfas count per cbg
+  mutate(tids = paste(PWSID, sep = ", "))  %>%
+  mutate(cbg_pfas_count = mean(pfas_count)) %>% #avg pfas count per cbg
   mutate(avg_conc_cbg = mean(concentration_sum)) %>% #avg pfas concentration per cbg
   distinct(ID, .keep_all = TRUE) 
 
 pfas_vio_all <- left_join(US_cbg_crop, cbg_pfas_vio) 
 
-st_as_sf(pfas_vio_all) #set as spatial object
-
-summary(cbg_pfas_vio$cbg_det_share) #distribution
-#3rd QT = 0.2
-summary(cbg_pfas_vio$avg_conc_cbg) 
-# 0.012
-
-
-# Tract
-
-tract_pfas_vio <- cbg_pfas_vio %>%
-  mutate(tract = substring(ID, first=1, last=11)) %>%
-  group_by(tract) %>%
-  mutate(pfas_count_tract = sum(pfas_count*ACSTOTPOP)/sum(ACSTOTPOP)) %>% #avg pfas count per tract
-  mutate(avg_conc_tract = sum(concentration_sum*ACSTOTPOP)/sum(ACSTOTPOP)) %>% #avg pfas concentration per tract
-  distinct(tract, .keep_all = TRUE) 
-
-pfas_vio_all <- left_join(US_tract_50, tract_pfas_vio, by = "tract") 
-
-st_as_sf(pfas_vio_all)
-
-summary(pfas_vio_all$cbg_det_share) #distribution
-#3rd QT = 1
-summary(pfas_vio_all$avg_conc_cbg) 
+summary(cbg_pfas_vio$cbg_pfas_count) 
+# 2.0
 
 ################################################################################
 ## PFAS Violations Maps
 ################################################################################
 
+# Map 5 : PFAS concentrations cbg
+
 pfas_plot <- ggplot() + 
-  geom_sf(data = pfas_vio_all, aes(fill = avg_conc_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "PFAS Concentration\nSum (µg/L)\n(2013-2023)", palette = "GnBu", 
-                       direction = 1, limits=c(0,.01), breaks = c(0,.01), labels = c(0,">.01"), 
+  geom_sf(data = pfas_vio_all, aes(fill = cbg_pfas_count, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "Unique PFAS\ndetected\n(2013-2023)", palette = "GnBu", 
+                       direction = 1, 
+                       # limits=c(0,9),
+                       # breaks = c(0,9),
+                       # labels = c(0, ">9"),
                        na.value = scales::alpha("#DCDCDC", 0.75)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
@@ -357,7 +402,7 @@ pfas_plot <- ggplot() +
         legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"pfas_conc_cbg_US.png"), 
+png(file = paste0(plot_path,"pfas_vio_cbg_US.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -365,11 +410,18 @@ print(pfas_plot)
 
 dev.off()
 
-# Detection Share
-pfas_det_plot <- ggplot() + 
-  geom_sf(data = pfas_vio_all, aes(fill = cbg_det_share, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Share of Positive\nPFAS sample detections\n(2013-2023)", palette = "GnBu", 
-                       direction = 1, limits=c(0,.01), breaks = c(0,.01), labels = c(0,">.01"), 
+# Truncated data
+
+pfas_vio_trunc <- pfas_vio_all %>%
+  mutate(pfas_count_trunc = ifelse(cbg_pfas_count >= 9, 9, cbg_pfas_count))
+
+pfas_plot <- ggplot() + 
+  geom_sf(data = pfas_vio_trunc, aes(fill = pfas_count_trunc, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "Unique PFAS\ndetected\n(2013-2023)", palette = "GnBu", 
+                       direction = 1, 
+                       limits=c(0,9),
+                       breaks = c(0,9),
+                       labels = c(0, ">9"),
                        na.value = scales::alpha("#DCDCDC", 0.75)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
@@ -378,21 +430,25 @@ pfas_det_plot <- ggplot() +
         legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"pfas_det_cbg_US.png"), 
+png(file = paste0(plot_path,"pfas_vio_trunc_US.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
-print(pfas_det_plot)
+print(pfas_plot)
 
 dev.off()
 
-rm(cbg_pfas_vio, pfas_vio_all, pfas_plot, pfas_det_plot)
+rm(pfas_vio_trunc, pfas_vio_all, cbg_pfas_vio, pfas_plot)
+
+
 
 ################################################################################
 ## DBP violations
 ################################################################################
 
-cbg_dbp_vio <- read_rds("Data/combined/area/dbp_vio_epic_area.rds")
+cbg_dbp_vio <- read_rds("Data/combined/area/dbp_vio_epic_area_v2.rds") 1%>%
+  mutate(ID=str_pad(ID, 12, pad="0")) %>%
+  mutate(ID = as.character(ID))
 
 # CBG
 
@@ -403,26 +459,7 @@ cbg_dbp_vio <- cbg_dbp_vio %>%
 
 dbp_vio_all <- left_join(US_cbg_crop, cbg_dbp_vio) 
 
-st_as_sf(dbp_vio_all) #set as spatial object
-
 summary(dbp_vio_all$avg_dbp_cbg) #distribution
-
-
-# Tract
-
-tract_dbp_vio <- cbg_dbp_vio %>%
-  mutate(tract = substring(ID, first=1, last=11)) %>%
-  group_by(tract) %>%
-  mutate(avg_dbp_tract = sum(combined_dbp*ACSTOTPOP)/sum(ACSTOTPOP)) %>%
-  distinct(tract, .keep_all = TRUE) 
-
-dbp_vio_all <- left_join(US_tract_50, tract_dbp_vio, by = "tract") 
-
-summary(dbp_vio_all$avg_dbp_tract) #distribution
-
-#3rd QT = 63
-
-st_as_sf(dbp_vio_all) #set as spatial object
 
 ################################################################################
 ## DBP violations Maps
@@ -432,7 +469,7 @@ st_as_sf(dbp_vio_all) #set as spatial object
 
 dbp_plot <- ggplot() + 
   geom_sf(data = dbp_vio_all, aes(fill = avg_dbp_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average combined dbp\nconcentration (mg/L)\n(2006-2019)", palette = "Blues", 
+  scale_fill_distiller(name = "Combined Disinfection\nByproducts Concentration \n(g/L) (2006-2019)", palette = "Blues", 
                        direction = 1, limits=c(0,60), breaks = c(0,60), labels = c(0,">60"), 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
@@ -450,59 +487,57 @@ print(dbp_plot)
 
 dev.off()
 
-# Map 9 : DBP violations tract
+# Truncated plot
 
-ggplot() + 
-  geom_sf(data = dbp_vio_all, aes(fill = avg_dbp_tract, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average combined\nconcentration per tract", palette = "Blues", 
-                       direction = 1, limits=c(0,60), breaks = c(0,60), labels = c(0,">60"), 
+dbp_vio_trunc <- dbp_vio_all %>%
+  mutate(dbp_cbg_trunc = ifelse(avg_dbp_cbg >= 80, 80, avg_dbp_cbg))
+
+dbp_plot <- ggplot() + 
+  geom_sf(data = dbp_vio_trunc, aes(fill = dbp_cbg_trunc, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "Combined Disinfection\nByproducts Concentration \n(mg/L) (2006-2019)", palette = "Blues", 
+                       direction = 1, limits=c(0,80), breaks = c(0,80), labels = c(0,">80"), 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
-  ggthemes::theme_map() + 
-  theme(legend.key.size = unit(0.5, 'cm'), legend.text = element_text(family = "serif"), legend.title = element_text(family = "serif", size = 8), legend.position = "right", legend.box.background = element_blank()) 
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  coord_sf() +
+  theme_void() +
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
+        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+        legend.box.background = element_blank()) 
 
-ggsave(filename = 'dbp_conc_tract_US.png', path = plot_path,
-       scale = 1.5,
-       width = 7,
-       height = 5,
-       units = "in",
-       dpi = 300,
-       limitsize = FALSE)
+png(file = paste0(plot_path,"dbp_vio_trunc_US.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 20,
+    bg = "transparent")
 
-rm(cbg_dbp_vio, dbp_vio_all, dbp_plot)
+print(dbp_plot)
+
+dev.off()
+
+rm(dbp_vio_all, cbg_dbp_vio, dbp_plot)
 
 ################################################################################
 ## TCR violations
 ################################################################################
 
-cbg_tcr_vio <-read_rds("Data/combined/area/tcr_vio_epic_area.rds")
-
-# CBG
-
-cbg_tcr_vio <- cbg_tcr_vio %>%
+cbg_tcr_vio <-read_rds("Data/combined/area/tcr_vio_epic_area.rds") %>%
+  mutate(ID=str_pad(ID, 12, pad="0")) %>%
+  mutate(ID = as.character(ID)) %>%
   group_by(ID) %>%
   mutate(tcr_det_cbg = mean(detection_share)) %>%
-  distinct(ID, .keep_all = TRUE)
+  mutate(tids = paste(PWSID, sep = ", "))  %>%
+  distinct(ID, .keep_all = TRUE) %>%
+  ungroup
+
+count <- count(cbg_tcr_vio, st_abbrev)
+
+summary <- cbg_tcr_vio %>%
+  group_by(st_abbrev) %>%
+  summarize(mean = mean(tcr_det_cbg, na.rm =TRUE),
+            obs = n()) %>%
+  mutate(mean = format(mean, scientific = FALSE))
 
 tcr_vio_all <- left_join(US_cbg_crop, cbg_tcr_vio) 
 
-st_as_sf(tcr_vio_all) #set as spatial object
-
 summary(tcr_vio_all$tcr_det_cbg) #distribution
-
-
-# Tract
-
-tract_tcr_vio <- cbg_tcr_vio %>%
-  mutate(tract = substring(ID, first=1, last=11)) %>%
-  group_by(tract) %>%
-  mutate(tcr_det_tract = sum(detection_share*ACSTOTPOP)/sum(ACSTOTPOP)) %>%
-  distinct(tract, .keep_all = TRUE)
-
-tcr_vio_all <- left_join(US_tract_50, tract_tcr_vio, by = "tract") 
-
-summary(tcr_vio_all$tcr_det_tract) #distribution 
-
-st_as_sf(tcr_vio_all) #set as spatial object
 
 ################################################################################
 ## TCR violations Maps
@@ -512,8 +547,8 @@ st_as_sf(tcr_vio_all) #set as spatial object
 
 tcr_plot <- ggplot() + 
   geom_sf(data = tcr_vio_all, aes(fill = tcr_det_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average detection\nshare per cbg", palette = "YlOrRd", 
-                       direction = 1, limits=c(0,0.25), breaks = c(0,0.25), labels = c(0,">0.25"),
+  scale_fill_distiller(name = "Total Coliform Detection \nShare (2006-2019)", palette = "YlOrRd", 
+                       direction = 1, limits=c(0,0.10), breaks = c(0,0.10), labels = c(0,">0.10"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
@@ -530,30 +565,30 @@ print(tcr_plot)
 
 dev.off()
 
+tcr_vio_trunc <- tcr_vio_all %>%
+  mutate(tcr_det_trunc = ifelse(tcr_det_cbg >= 0.10, 0.10, tcr_det_cbg))
 
-# Map 11 : TCR violations tract
-
-ggplot() + 
-  geom_sf(data = tcr_vio_all, aes(fill = tcr_det_tract, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average detection\nshare per tract", palette = "YlOrRd", 
-                       direction = 1, limits=c(0,0.25), breaks = c(0,0.25), labels = c(0,">0.25"),
+tcr_plot <- ggplot() + 
+  geom_sf(data = tcr_vio_trunc, aes(fill = tcr_det_trunc, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "Total Coliform Detection \nShare (2006-2019)", palette = "YlOrRd", 
+                       direction = 1, limits=c(0,0.10), breaks = c(0,0.10), labels = c(0,">0.10"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
-  ggthemes::theme_map() + 
-  theme(legend.key.size = unit(0.5, 'cm'), legend.text = element_text(family = "serif"), legend.title = element_text(family = "serif", size = 8), legend.position = "right", legend.box.background = element_blank()) 
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  coord_sf() +
+  theme_void() +
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
+        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+        legend.box.background = element_blank()) 
 
-ggsave(filename = 'tcr_det_tract_US.png', path = plot_path,
-       scale = 1.5,
-       width = 7,
-       height = 5,
-       units = "in",
-       dpi = 300,
-       limitsize = FALSE)
+png(file = paste0(plot_path,"tcr_vio_trunc_US.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 20,
+    bg = "transparent")
 
-rm(cbg_tcr_vio, tcr_vio_all, tcr_plot)
+print(tcr_plot)
 
-################################################################################
-## Arsenic violations
-################################################################################
+dev.off()
+
+rm(tcr_plot, tcr_vio_all, cbg_tcr_vio)
 
 cbg_ars_vio <- read_rds("Data/combined/area/arsenic_vio_epic_area.rds")  %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
@@ -653,16 +688,13 @@ png(file = paste0(plot_path,"nitrate_vio_cbg_US.png"),
 print(nitrate_plot)
 
 dev.off()
-
-
-
 ################################################################################
 ## Country demographic maps
 ################################################################################
 
 epic_cbg <- read.csv("Data/demographics/epic_dems.csv")
 
-pwsid_cbg <- read.csv("Data/demographics/hm_dems.csv") %>%
+pwsid_cbg <- read.csv("Data/demographics/epic_dems.csv") %>%
   dplyr::select(-contains("P_")) %>%
   clean_names() %>%
   mutate(ID=str_pad(id, 12, pad="0"))
@@ -721,4 +753,3 @@ print(inc_plot)
 dev.off()
 
 rm(pwsid_cbg, inc_plot, race_plot)
-
