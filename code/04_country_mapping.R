@@ -171,8 +171,8 @@ HB_vio_plot <- ggplot() +
   geom_sf(data = HB_vio_all, aes(fill = avg_cbg_vio, geometry = geometry), 
           color = NA) +
   scale_fill_distiller(name = "Average violations\nper CBG\n(2015-2022)", palette = "Reds", 
-                       direction = 1, limits=c(0,25), breaks = c(0,25), 
-                       labels = c(0,">25"), 
+                       # direction = 1, limits=c(0,25), breaks = c(0,25), 
+                       # labels = c(0,">25"), 
                        na.value = scales::alpha("#DCDCDC", 0.20)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
@@ -618,7 +618,8 @@ cbg_nitrate_vio <- read_rds("Data/combined/area/nitrate_vio_epic_area.rds")  %>%
 # Combine with geographic data for US cbgs
 
 nitrate_vio_all <- left_join(US_cbg_crop, cbg_nitrate_vio, by = "ID", relationship = "many-to-many") %>% 
-  st_as_sf()
+  st_as_sf() %>%
+  mutate(nitrate_tr = if_else(avg_cbg_vio > .1, .1, avg_cbg_vio))
 
 
 summary(cbg_nitrate_vio$avg_cbg_vio)
@@ -632,10 +633,11 @@ summary(nitrate_vio_all$avg_cbg_vio)
 # Map 10 : nitrate violations CBG
 
 nitrate_plot <- ggplot() + 
-  geom_sf(data = nitrate_vio_all, aes(fill = avg_cbg_vio, geometry = geometry), color = NA) +
+  geom_sf(data = nitrate_vio_all, aes(fill = nitrate_tr, geometry = geometry), color = NA) +
   scale_fill_distiller(name = "Average concentration", palette = "RdPu", 
                        direction = 1, 
-                       #limits=c(0,0.25), breaks = c(0,0.25), labels = c(0,">0.25"),
+                       #limits=c(0,0.25), 
+                       breaks = c(0,0.1), labels = c(0,">0.1"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
