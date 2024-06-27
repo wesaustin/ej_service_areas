@@ -226,6 +226,57 @@ summary(tcr_env_lm <- glm(detection_share ~ pre1960pct + ozone + pm25 + ptsdf +
                      data = tcr_vio))
 
 rm(tcr_vio)
+################################################################################
+## Load Data 
+## Arsenic concentrations
+################################################################################
+ars_vio <- read_rds("Data/combined/pwsid/ars_vio_epic.rds")  %>%
+  left_join(sys_code) %>%
+  mutate(SystemSize = case_when(
+    pop_served > 100000 ~ "VeryLarge",
+    pop_served > 10000 ~ "Large",
+    pop_served > 3300 ~ "Medium",
+    pop_served > 500 ~ "Small",
+    pop_served <= 500 ~ "VerySmall"
+  ))
+
+summary(ars_dem_lm <- glm(arsenic ~ frac_black + frac_hisp + frac_pacisl + 
+                       frac_asian + frac_amerind +  lowinc + primacy_type + relevel(factor(SystemSize), ref = "Medium") + source_gw + state_code, 
+                     data = dbp_vio))
+
+summary(ars_env_lm <- glm(arsenic ~ pre1960pct + ozone + pm25 + ptsdf + 
+                           pwdis + pnpl + state_code,
+                     data = ars_vio))
+
+
+# Clear memory
+rm(ars_vio)
+
+################################################################################
+## Load Data 
+## Nitrate concentrations
+################################################################################
+nitrate_vio <- read_rds("Data/combined/pwsid/nitrate_vio_epic.rds")  %>%
+  left_join(sys_code) %>%
+  mutate(SystemSize = case_when(
+    pop_served > 100000 ~ "VeryLarge",
+    pop_served > 10000 ~ "Large",
+    pop_served > 3300 ~ "Medium",
+    pop_served > 500 ~ "Small",
+    pop_served <= 500 ~ "VerySmall"
+  ))
+
+summary(nitrate_dem_lm <- glm(nitrateenic ~ frac_black + frac_hisp + frac_pacisl + 
+                       frac_asian + frac_amerind +  lowinc + primacy_type + relevel(factor(SystemSize), ref = "Medium") + source_gw + state_code, 
+                     data = dbp_vio))
+
+summary(nitrate_env_lm <- glm(nitrateenic ~ pre1960pct + ozone + pm25 + ptsdf + 
+                           pwdis + pnpl + state_code,
+                     data = nitrate_vio))
+
+
+# Clear memory
+rm(nitrate_vio)
 
 ################################################################################
 ## Regression tables
@@ -234,7 +285,8 @@ rm(tcr_vio)
 library(stargazer)
 
 #Dem regressions
-stargazer(hb_dem_poi, lcr_dem_poi, pfas_dem_poi, dbp_dem_lm, tcr_dem_lm, title = "Demographic Regression Results", align = FALSE,
+stargazer(hb_dem_poi, lcr_dem_poi, pfas_dem_poi, dbp_dem_lm, tcr_dem_lm, ars_dem_lm, nitrate_dem_lm, 
+          title = "Demographic Regression Results", align = FALSE,
           column.labels = c("Health-based", "Lead", "PFAS", "DBP", "TCR"),
           covariate.labels = c("\\% Black", "\\% Hispanic", "\\% Pacific Islander", "\\% Asian", 
                                "\\% American Indian", "\\% Low income^{+}", "Tribal System", "Large system^{++}", "Small system", "Very Large system", "Very small system","Groundwater"),
@@ -247,7 +299,8 @@ stargazer(hb_dem_poi, lcr_dem_poi, pfas_dem_poi, dbp_dem_lm, tcr_dem_lm, title =
 
 
 #Env regressions
-stargazer(hb_env_poi, lcr_env_poi, pfas_env_poi, dbp_env_lm, tcr_env_lm, title = "Environmental Regression Results", align = FALSE,
+stargazer(hb_env_poi, lcr_env_poi, pfas_env_poi, dbp_env_lm, tcr_env_lm, ars_env_lm, nitrate_env_lm, 
+          title = "Environmental Regression Results", align = FALSE,
           column.labels = c("Health-based", "Lead", "PFAS", "DBP", "TCR"),
           covariate.labels = c("Lead Paint", "Ozone", "PM_{2.5}", "Toxic Release Facility", "
                          Wastewater discharge", "Superfund Site"),
