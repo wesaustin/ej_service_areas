@@ -189,6 +189,8 @@ dbp_vio <- read_rds("Data/combined/pwsid/dbp_vio_epic.rds")  %>%
 
 summary(dbp_dem_lm <- glm(combined_dbp ~ frac_amerind + frac_black + frac_asian + frac_hisp + frac_pacisl + 
                               lowinc + primacy_type + relevel(factor(SystemSize), ref = "Medium") + source_gw + state_code, 
+                          data = dbp_vio))
+
 summary(dbp_env_lm <- glm(combined_dbp ~ pre1960pct + ozone + pm25 + ptsdf + 
                            pwdis + pnpl + state_code,
                      data = dbp_vio))
@@ -286,7 +288,7 @@ library(stargazer)
 stargazer(hb_dem_poi, lcr_dem_poi, pfas_dem_poi, dbp_dem_lm, tcr_dem_lm, ars_dem_lm, nitrate_dem_lm, 
           title = "Demographic Regression Results", align = FALSE,
           column.labels = c("Health-based", "Lead", "PFAS", "DBP", "TCR", "ARS", "NITR"),
-          covariate.labels = c(""\\% American Indian", "\\% Asian", \\% Black", "\\% Hispanic", "\\% Pacific Islander",  
+          covariate.labels = c("\\% American Indian", "\\% Asian", "\\% Black", "\\% Hispanic", "\\% Pacific Islander",  
                                 "\\% Low income^{+}", "Tribal System", "Large system^{++}", "Small system", "Very Large system", "Very small system","Groundwater"),
           omit = 'state_code', 
           omit.labels = "State control",
