@@ -13,31 +13,38 @@ pacman::p_load(
   tidycensus,
   mapview,
   janitor,
+  units,
   EJSCREENbatch, # Download EJscreen 
   areal #for areal interpolation
 )
 
-# hm interpolation
+# Areal apportionment 
 
-save_here <- "Data/hm_interp/"
+# First read in polygon data
 
 target <- sf::st_read("Data/hall_murray/Water_System_Boundaries.gpkg") 
 
+# CBG data with EJScreen info
 source <- readRDS("Data/data.tog.rds") %>%
   st_as_sf() %>%
   st_transform(crs = st_crs(target))
 
+# Target ID (for calculating  block group into into the target polygons)
 tid = "PWSID"
 
+# Source ID (to assign targets to source polygons)
 sid = "ID"
 
+# Grab the names of the variables you want to calculate
 data.nog <- source %>%
   st_drop_geometry() %>%
   mutate(ID = as.character(ID), 
          ID = str_pad(ID, 12, "left", pad = "0"))
 
+# Extensive margin : counts
 ext <- "ACSTOTPOP"
 
+# Intensive margin : percents 
 int <- names(data.nog[, c(5:56)])
 
 rm(data.nog)
@@ -46,16 +53,19 @@ rm(data.nog)
 interpolate <- function (source, sid, target, tid, ext, int) {
   
   # Find intersecting polygons
-
-  intersect <- st_intersection(target, source)
+  
+  intersect <- st_intersection(target, source) 
   
   #Create df with area of intersection
   intersect_area <- intersect %>% 
-    mutate(intersect_area = st_area(.)) %>%   # create new column with shape area
+    mutate(intersect_area = st_area(.)) %>% # create new column with shape area 
     st_drop_geometry() %>% #drop geometry: easier to compute
     dplyr::select(c(tid, sid, 'intersect_area')) # only select columns needed to merge
   
   intersect_area <- drop_units(intersect_area) 
+  
+  intersect_area <- intersect_area %>%
+    filter('intersect_area' > 0)
   
   #Calculate the area of the source polygons (for extensive interpolation)
   source_area <- mutate(source, sid_area = st_area(source))  %>%
@@ -90,11 +100,11 @@ interpolate <- function (source, sid, target, tid, ext, int) {
   
   target_dat <- intersect %>%
     group_by(pick(tid)) %>%
-    mutate(across(all_of(ext), ~mean(.x, na.rm=T))) %>% # average 
+    mutate(across(all_of(ext), ~sum(.x, na.rm=T))) %>% # average 
     mutate(across(all_of(int), ~mean(.x, na.rm=T))) %>%
     mutate(sids = paste(pick(sid), collapse = ", "))%>%  # record CBGs contributing to data
     ungroup 
-
+  
   target_dat <- target_dat %>%
     distinct(pick(tid), .keep_all =T)   # select distinct tid's
   
@@ -104,27 +114,19 @@ interpolate <- function (source, sid, target, tid, ext, int) {
 
 areal_int <- interpolate(source=source, sid = "ID", target=target, tid="PWSID", ext="ACSTOTPOP", int)
 
-intersect <- areal_int[[1]]
+intersect <- areal_int[[1]] # retreive datasets
 
 intersect_w <- areal_int[[2]]
 
+target_dat <- areal_int[[3]]
+
 saveRDS(areal_int, file = paste0(save_here, "areal_int.rds"))
 
-areal_int2 <- areal_int %>%
-  dplyr::select(-c(26:30)) %>%
-  st_drop_geometry
+write.csv(intersect_w, "Data/demographics/area/hm_dems_area.csv")
 
-saveRDS(areal_int2, file = paste0(save_here, "hm_dems.rds"))
+write.csv(target_dat, "Data/demographics/area/hm_dems_area.csv")
 
-write_csv(areal_int2, file = paste0(save_here, "hm_dems.csv"))
-
-saveRDS(intersect, file = paste0(save_here, "intersect.rds"))
-
-saveRDS(intersect_w, file = paste0(save_here, "intersect_weighted.rds"))
-
-saveRDS(intersect_w, file = paste0(save_here, "hm_dems_area.rds"))
-
-saveRDS(target_dat, file = paste0(save_here,"target_dat.rds"))
+##################
 
 #create data frame with single CBG (if necessary)
 
@@ -133,17 +135,10 @@ source_dat <- intersect %>%
   mutate(across(all_of(ext), ~mean(.x, na.rm=T))) %>%
   mutate(across(all_of(int), ~mean(.x, na.rm=T))) %>%
   mutate(tids = paste(pick(tid), sep = ", ")) %>%
-  ungroup()
+  ungroup() %>%
+  st_drop_geometry()
 
 source_dat <- source_dat %>%
   distinct(pick(sid), .keep_all =T)                   # Using duplicated function
 
 saveRDS(source_dat, file = paste0(save_here,"source_dat.rds"))
-
-
-interpolate(source=data.tog, sid = "ID", target=sb_hm_shp, tid="PWSID", ext="ACSTOTPOP", int)
-
-
-rm(taget_area, source_area, intersect_area)
-
-
