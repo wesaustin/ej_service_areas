@@ -112,7 +112,7 @@ lcr_vio <- readRDS("ej_service_areas/data/indicators/lcr_violations.rds") %>%
 
 for (i in boundary) {
   
-  pwsid_dem <- read.csv(paste0("Data/demographics/", i, "_dems.csv")) %>%
+  pwsid_dem <- read.csv(paste0("data/demographics/", i, "_dems.csv")) %>%
     clean_names() %>%
     dplyr::select(-ends_with("state")) %>%
     rename_with(

@@ -1,7 +1,7 @@
 ################################################################################
-# Demographic Indices for SDWA indicators 
+# Calculating Drinking Water Quality across Demographic Groups  
 # National Center for Environmental Economics
-# Last edited: 1/23/2024
+# Last edited: 6/28/2024
 ################################################################################
 
 # Load packages
@@ -118,7 +118,10 @@ for (j in 1:length(data_list)) {
     mutate(highinc_risk = weighted.mean(total_violations, highinc_served, na.rm= TRUE)) %>% #High income weight
     mutate(lowinc_risk = weighted.mean(total_violations, lowinc_served, na.rm= TRUE)) #low income weight
   
+  # Saving an intermediate file to construct an analysis panel later 
+  write.csv(rel_risk, file = paste0("ej_service_areas/data/risk_by_pws/risk_", b, "_", i,".csv" ))
   
+  # generate relative risk metrics 
   amer_ind = as.numeric(rel_risk[1, "amer_ind_risk"]) / as.numeric(rel_risk[1, "nhw_risk"])
   asian = as.numeric(rel_risk[1, "asian_risk"]) / as.numeric(rel_risk[1, "nhw_risk"])
   black = as.numeric(rel_risk[1, "black_risk"]) / as.numeric(rel_risk[1, "nhw_risk"])
