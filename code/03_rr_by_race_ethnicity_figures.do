@@ -2,7 +2,7 @@
 ********************************************************************************
 * Creating Figures for EJ & Service Areas PAper 
 * National Center for Environmental Economics 
-* Last Edited: 3/20/2024
+* Last Edited: 6/28/2024
 ********************************************************************************
 ********************************************************************************
 
@@ -29,7 +29,7 @@ grstyle set color hue, n(5) opacity(75)
 * Histogram of relative risks by demographic group 
 ********************************************************************************
 
-import delimited "${path}ej_service_areas\data\rel_risk_by_race_all.csv" , clear 	
+import delimited "${path}ej_service_areas\data\rel_risk\rel_risk_all_subpop.csv" , clear 	
 
 replace boundary = "EPA ORD" if boundary == "hm"
 replace boundary = "EPIC" if boundary == "epic"
@@ -78,7 +78,7 @@ foreach var in hb_rel_risk lcr_rel_risk pfas_rel_risk dbp_rel_risk tcr_rel_risk{
 * Simple version of basic comparisons across indicators 
 ********************************************************************************
 
-import delimited "${path}ej_service_areas\data\rel_risk_all.csv", clear 
+import delimited "${path}ej_service_areas\data\rel_risk\rel_risk_all.csv", clear 
 
 drop v1
 replace boundary = "EPA ORD" if boundary == "hm"
@@ -141,7 +141,7 @@ foreach var in hb_rel_risk lcr_rel_risk pfas_rel_risk dbp_rel_risk tcr_rel_risk{
 * Key Results - Basic Comparisons across Indicators 
 ********************************************************************************
 
-import delimited "${path}ej_service_areas\data\rel_risk_all.csv", clear 
+import delimited "${path}ej_service_areas\data\rel_risk\rel_risk_all.csv", clear 
 
 drop v1
 replace boundary = "EPA ORD" if boundary == "hm"
@@ -198,11 +198,11 @@ replace iorder = 5 if indicator == "Total Coliform"
 	
 	
 ********************************************************************************
-* Final - Histogram of relative risks by demographic group 
+* Histogram of relative risks by demographic group 
 ********************************************************************************
 
 *import delimited "${path}ej_service_areas\data\rel_risk_by_race_all_v2.csv" , clear 	
-import delimited "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\NCEE - Water System Service Boundaries\ej_service_areas\data\rel_risk_all_subpop.csv", clear 
+import delimited "${path}ej_service_areas\data\rel_risk\rel_risk_all_subpop.csv", clear 
 
 replace boundary = "EPA ORD" if boundary == "hm"
 replace boundary = "EPIC" if boundary == "epic"
