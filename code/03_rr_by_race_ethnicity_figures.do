@@ -202,7 +202,7 @@ replace iorder = 5 if indicator == "Total Coliform"
 ********************************************************************************
 
 *import delimited "${path}ej_service_areas\data\rel_risk_by_race_all_v2.csv" , clear 	
-import delimited "${path}ej_service_areas\data\rel_risk\rel_risk_all_subpop.csv", clear 
+import delimited "${path}ej_service_areas\data\rel_risk_all_subpop.csv", clear 
 
 replace boundary = "EPA ORD" if boundary == "hm"
 replace boundary = "EPIC" if boundary == "epic"

@@ -48,12 +48,12 @@ pacman::p_load(
 my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
 
 #WA
-#my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
+my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
 
 setwd(paste0(my_path))
 getwd()
 
-plot_path <- "Plots/country/hm/"
+plot_path <- "ej_service_areas/output/country maps/hm/"
 
 
 ################################################################################
@@ -112,21 +112,21 @@ US_st_crop <- st_crop(US_50, bbox)
 
 ## Save files to save on future computation time
 
-saveRDS(US_cbg_crop, file = "Data/census_geo/US_cbg_crop.rds")
+saveRDS(US_cbg_crop, file = "ej_service_areas/data/census_geo/US_cbg_crop.rds")
 
-saveRDS(US_st_crop, file = "Data/census_geo/US_st_crop.rds")
+saveRDS(US_st_crop, file = "ej_service_areas/data/census_geo/US_st_crop.rds")
 
 rm(US_48, US_cbg, US_cbg_50, US_50)
 
-US_cbg_crop <- readRDS("Data/census_geo/US_cbg_crop.rds") 
+US_cbg_crop <- readRDS("ej_service_areas/data/census_geo/US_cbg_crop.rds") 
 
-US_st_crop <- readRDS("Data/census_geo/US_st_crop.rds")
+US_st_crop <- readRDS("ej_service_areas/data/census_geo/US_st_crop.rds")
 
 ################################################################################
 ## Health violations
 ################################################################################
 
-cbg_HB_vio <- read_rds("Data/combined/area/HB_vio_hm_area.rds")  %>%
+cbg_HB_vio <- read_rds("data/combined/HB_vio_hm_area.rds")  %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   group_by(ID) %>%
   mutate(avg_cbg_vio = mean(total_violations)) %>%
@@ -145,20 +145,20 @@ summary(cbg_HB_vio$total_violations)
 summary(cbg_HB_vio$avg_cbg_vio)
 
 
-# Tract level 
-
-tract_HB_vio <- cbg_HB_vio %>%
-  mutate(tract = substring(ID, first=1, last=11)) %>%
-  group_by(tract) %>%
-  mutate(avg_vio_tract = sum(total_violations*ACSTOTPOP)/sum(ACSTOTPOP), na.rm = TRUE) %>% #average violations per tract
-  distinct(tract, .keep_all = TRUE) 
-
-HB_vio_all <- left_join(US_tract_50, tract_HB_vio, by = "tract") #note to rerun this if you are doing tract and tract level, right now comb share the same name
-
-st_as_sf(HB_vio_all)
-
-summary(HB_vio_all$avg_vio_tract)
-#3rd qt = 1.35
+# # Tract level 
+# 
+# tract_HB_vio <- cbg_HB_vio %>%
+#   mutate(tract = substring(ID, first=1, last=11)) %>%
+#   group_by(tract) %>%
+#   mutate(avg_vio_tract = sum(total_violations*ACSTOTPOP)/sum(ACSTOTPOP), na.rm = TRUE) %>% #average violations per tract
+#   distinct(tract, .keep_all = TRUE) 
+# 
+# HB_vio_all <- left_join(US_tract_50, tract_HB_vio, by = "tract") #note to rerun this if you are doing tract and tract level, right now comb share the same name
+# 
+# st_as_sf(HB_vio_all)
+# 
+# summary(HB_vio_all$avg_vio_tract)
+# #3rd qt = 1.35
 
 ################################################################################
 # HB Violations Maps
@@ -169,11 +169,9 @@ summary(HB_vio_all$avg_vio_tract)
 HB_vio_plot <- ggplot() + 
   geom_sf(data = HB_vio_all, aes(fill = avg_cbg_vio, geometry = geometry), 
           color = NA) +
-  scale_fill_distiller(name = "Health-based Violations\n(2015-2023)", palette = "Reds", 
-                       direction = 1, 
-                       # limits=c(0,10), 
-                       #breaks = c(0,10), 
-                       # labels = c(0,">10"), 
+  scale_fill_distiller(name = "", palette = "Reds", 
+                       direction = 1, limits=c(0,25), breaks = c(0,25), 
+                       labels = c(0,">25"), 
                        na.value = scales::alpha("#DCDCDC", 0.20)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
@@ -200,7 +198,7 @@ hb_vio_trunc <- HB_vio_all %>%
 HB_vio_plot <- ggplot() + 
   geom_sf(data = hb_vio_trunc, aes(fill = cbg_vio_trunc, geometry = geometry), 
           color = NA) +
-  scale_fill_distiller(name = "Health-based Violations\n(2015-2023)", palette = "Reds", 
+  scale_fill_distiller(name = "", palette = "Reds", 
                        direction = 1, 
                        limits=c(0,10), breaks = c(0,10), 
                        labels = c(0,">10"), 
@@ -229,7 +227,7 @@ rm(HB_vio_all, HB_vio_plot, cbg_HB_vio)
 ## LCR violations
 ################################################################################
 
-cbg_lcr_vio <- read_rds("Data/combined/area/lcr_vio_hm_area.rds") #load lcr data
+cbg_lcr_vio <- read_rds("data/combined/lcr_vio_hm_area.rds") #load lcr data
 
 # CBG
 
@@ -237,7 +235,7 @@ cbg_lcr_vio <- cbg_lcr_vio %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   mutate(ID = as.character(ID)) %>%
   group_by(ID) %>%
-  mutate(tids = paste(PWSID, sep = ", "))  %>%
+  mutate(tids = paste(pwsid, sep = ", "))  %>%
   mutate(pb_vio_cbg = mean(pb_vio_count)) %>% #average number of lead violations per CBG
   mutate(cu_vio_cbg = mean(cu_vio_count)) %>% #average number of copper violations per CBG
   mutate(avg_pb_cbg = mean(avg_pb_level)) %>% #average lead levels per CBG
@@ -341,7 +339,7 @@ dev.off()
 
 pb_ale_plot <- ggplot() + 
   geom_sf(data = lcr_vio_trunc, aes(fill = pb_ale_trunc, geometry = geometry), color = NA) +
-  scale_fill_gradientn(name = "Lead Action Level\nExceedances\n(1991-2021)", colours = gr_scale, 
+  scale_fill_gradientn(name = "", colours = gr_scale, 
                        #  direction = 1, 
                        limits=c(0,5), breaks = c(0,5),
                        labels = c(0, ">5"),
@@ -367,11 +365,11 @@ rm(lcr_vio_all, cbg_lcr_vio, lcr_plot, pb_trunc_plot)
 ## PFAS violations
 ################################################################################
 
-cbg_pfas_vio <- read_rds("Data/combined/area/pfas_vio_hm_area.rds") %>%
+cbg_pfas_vio <- read_rds("data/combined/pfas_vio_hm_area.rds") %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   mutate(ID = as.character(ID)) %>% #load pfas data
   group_by(ID) %>%
-  mutate(tids = paste(PWSID, sep = ", "))  %>%
+  mutate(tids = paste(pwsid, sep = ", "))  %>%
   mutate(cbg_pfas_count = mean(pfas_count)) %>% #avg pfas count per cbg
   mutate(avg_conc_cbg = mean(concentration_sum)) %>% #avg pfas concentration per cbg
   distinct(ID, .keep_all = TRUE) 
@@ -446,7 +444,7 @@ rm(pfas_vio_trunc, pfas_vio_all, cbg_pfas_vio, pfas_plot)
 ## DBP violations
 ################################################################################
 
-cbg_dbp_vio <- read_rds("Data/combined/area/dbp_vio_hm_area_v2.rds") 1%>%
+cbg_dbp_vio <- read_rds("data/combined/dbp_vio_hm_area_v2.rds") %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   mutate(ID = as.character(ID))
 
@@ -469,7 +467,7 @@ summary(dbp_vio_all$avg_dbp_cbg) #distribution
 
 dbp_plot <- ggplot() + 
   geom_sf(data = dbp_vio_all, aes(fill = avg_dbp_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Combined Disinfection\nByproducts Concentration \n(g/L) (2006-2019)", palette = "Blues", 
+  scale_fill_distiller(name = "", palette = "Blues", 
                        direction = 1, limits=c(0,60), breaks = c(0,60), labels = c(0,">60"), 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
@@ -494,7 +492,7 @@ dbp_vio_trunc <- dbp_vio_all %>%
 
 dbp_plot <- ggplot() + 
   geom_sf(data = dbp_vio_trunc, aes(fill = dbp_cbg_trunc, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Combined Disinfection\nByproducts Concentration \n(mg/L) (2006-2019)", palette = "Blues", 
+  scale_fill_distiller(name = "", palette = "Blues", 
                        direction = 1, limits=c(0,80), breaks = c(0,80), labels = c(0,">80"), 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
@@ -518,12 +516,12 @@ rm(dbp_vio_all, cbg_dbp_vio, dbp_plot)
 ## TCR violations
 ################################################################################
 
-cbg_tcr_vio <-read_rds("Data/combined/area/tcr_vio_hm_area.rds") %>%
+cbg_tcr_vio <-read_rds("data/combined/tcr_vio_hm_area.rds") %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   mutate(ID = as.character(ID)) %>%
   group_by(ID) %>%
   mutate(tcr_det_cbg = mean(detection_share)) %>%
-  mutate(tids = paste(PWSID, sep = ", "))  %>%
+  mutate(tids = paste(pwsid, sep = ", "))  %>%
   distinct(ID, .keep_all = TRUE) %>%
   ungroup
 
@@ -540,14 +538,14 @@ tcr_vio_all <- left_join(US_cbg_crop, cbg_tcr_vio)
 summary(tcr_vio_all$tcr_det_cbg) #distribution
 
 ################################################################################
-## TCR violations Maps
+## TCR Detection Rate Maps
 ################################################################################
 
 # Map 10 : TCR violations CBG
 
 tcr_plot <- ggplot() + 
   geom_sf(data = tcr_vio_all, aes(fill = tcr_det_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Total Coliform Detection \nShare (2006-2019)", palette = "YlOrRd", 
+  scale_fill_distiller(name = "", palette = "YlOrRd", 
                        direction = 1, limits=c(0,0.10), breaks = c(0,0.10), labels = c(0,">0.10"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
@@ -570,7 +568,7 @@ tcr_vio_trunc <- tcr_vio_all %>%
 
 tcr_plot <- ggplot() + 
   geom_sf(data = tcr_vio_trunc, aes(fill = tcr_det_trunc, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Total Coliform Detection \nShare (2006-2019)", palette = "YlOrRd", 
+  scale_fill_distiller(name = "", palette = "YlOrRd", 
                        direction = 1, limits=c(0,0.10), breaks = c(0,0.10), labels = c(0,">0.10"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
@@ -590,18 +588,29 @@ dev.off()
 
 rm(tcr_plot, tcr_vio_all, cbg_tcr_vio)
 
-cbg_ars_vio <- read_rds("Data/combined/area/arsenic_vio_hm_area.rds")  %>%
+
+################################################################################
+## Arsenic Concentrations
+################################################################################
+
+
+
+cbg_ars_vio <- read_rds("data/combined/arsenic_vio_hm_area.rds")  %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   group_by(ID) %>%
   mutate(avg_cbg_vio = mean(as.numeric(arsenic))) %>%
   distinct(ID, .keep_all = TRUE) %>%
   ungroup
 
+cbg_ars_vio <- cbg_ars_vio %>%
+  mutate(avg_cbg_vio = avg_cbg_vio * 1000 ) #convert to ppb
+
+
 # Combine with geographic data for US cbgs
 
 ars_vio_all <- left_join(US_cbg_crop, cbg_ars_vio, by = "ID", relationship = "many-to-many") %>% 
   st_as_sf() %>%
-  mutate(ars_tr = case_when(avg_cbg_vio > 0.02 ~ 0.02, 
+  mutate(ars_tr = case_when(avg_cbg_vio > 20 ~ 20, 
                             TRUE ~ avg_cbg_vio))
 
 
@@ -613,14 +622,12 @@ summary(ars_vio_all$ars_tr)
 
 
 ################################################################################
-## Arsenic violations Maps
+## Arsenic Concentrations Map
 ################################################################################
-
-# Map 10 : TCR violations CBG
 
 ars_plot <- ggplot() + 
   geom_sf(data = ars_vio_all, aes(fill = ars_tr, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average concentration", palette = "Blues", 
+  scale_fill_distiller(name = "", palette = "Blues", 
                        direction = 1, 
                        #limits=c(0,0.25), breaks = c(0,0.25), labels = c(0,">0.25"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
@@ -640,10 +647,10 @@ print(ars_plot)
 dev.off()
 
 ################################################################################
-## Nitrate violations
+## Nitrate Concentrations
 ################################################################################
 
-cbg_nitrate_vio <- read_rds("Data/combined/area/nitrate_vio_hm_area.rds")  %>%
+cbg_nitrate_vio <- read_rds("data/combined/nitrate_vio_hm_area.rds")  %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   group_by(ID) %>%
   mutate(avg_cbg_vio = mean(as.numeric(nitrate))) %>%
@@ -653,26 +660,24 @@ cbg_nitrate_vio <- read_rds("Data/combined/area/nitrate_vio_hm_area.rds")  %>%
 # Combine with geographic data for US cbgs
 
 nitrate_vio_all <- left_join(US_cbg_crop, cbg_nitrate_vio, by = "ID", relationship = "many-to-many") %>% 
-  st_as_sf() %>%
-  mutate(nitrate_tr = if_else(avg_cbg_vio > .1, .1, avg_cbg_vio))
-
+  st_as_sf() 
+# %>%
+#  mutate(nitrate_tr = if_else(avg_cbg_vio > .1, .1, avg_cbg_vio))
 
 summary(cbg_nitrate_vio$avg_cbg_vio)
-
 summary(nitrate_vio_all$avg_cbg_vio)
 
 ################################################################################
-## Arsenic violations Maps
+## Nitrate Concentration Maps
 ################################################################################
 
-# Map 10 : nitrate violations CBG
 
 nitrate_plot <- ggplot() + 
-  geom_sf(data = nitrate_vio_all, aes(fill = nitrate_tr, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Average concentration", palette = "RdPu", 
+  geom_sf(data = nitrate_vio_all, aes(fill = nitrate, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "", palette = "RdPu", 
                        direction = 1, 
                        #limits=c(0,0.25), 
-                       breaks = c(0,0.1), labels = c(0,">0.1"),
+                       breaks = c(0,20 ), labels = c(0,">20"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
@@ -694,9 +699,9 @@ dev.off()
 ## Country demographic maps
 ################################################################################
 
-hm_cbg <- read.csv("Data/demographics/hm_dems.csv")
+hm_cbg <- read.csv("data/demographics/hm_dems.csv")
 
-pwsid_cbg <- read.csv("Data/demographics/hm_dems.csv") %>%
+pwsid_cbg <- read.csv("data/demographics/hm_dems.csv") %>%
   dplyr::select(-contains("P_")) %>%
   clean_names() %>%
   mutate(ID=str_pad(id, 12, pad="0"))

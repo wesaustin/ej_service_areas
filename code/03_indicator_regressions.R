@@ -25,8 +25,30 @@ pacman::p_load(
   stringr, # string manipulation
   magrittr,
   janitor,
-  MASS #for regressions
+  MASS , #for regressions
+  stargazer
 )
+
+
+## Quick fix for stargazer <= 5.2.3 is.na() issue with long model names in R >= 4.2
+# Unload stargazer if loaded
+detach("package:stargazer",unload=T)
+# Delete it
+remove.packages("stargazer")
+# Download the source
+download.file("https://cran.r-project.org/src/contrib/stargazer_5.2.3.tar.gz", destfile = "stargazer_5.2.3.tar.gz")
+# Unpack
+untar("stargazer_5.2.3.tar.gz")
+# Read the sourcefile with .inside.bracket fun
+stargazer_src <- readLines("stargazer/R/stargazer-internal.R")
+# Move the length check 5 lines up so it precedes is.na(.)
+stargazer_src[1990] <- stargazer_src[1995]
+stargazer_src[1995] <- ""
+# Save back
+writeLines(stargazer_src, con="stargazer/R/stargazer-internal.R")
+# Compile and install the patched package
+install.packages("stargazer", repos = NULL, type="source")
+
 
 ################################################################################
 ##Set directories
@@ -36,7 +58,7 @@ pacman::p_load(
 my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
 
 #WA
-#my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
+my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
 
 getwd()
 setwd(paste0(my_path))
@@ -51,22 +73,21 @@ getwd()
 # % Low Income, System Size
 
 ################################################################################
-## Load data
+## Load system data on water source 
 ################################################################################
 
-sys_code <- read.csv("Data/SDWA_PUB_WATER_SYSTEMS.csv") %>%
+sys_code <- read.csv("data/demographics/SDWA_PUB_WATER_SYSTEMS.csv") %>%
   dplyr::select(PWSID, GW_SW_CODE) %>%
   clean_names %>%
   mutate(source_gw = ifelse(gw_sw_code == "GW", 1, 0))
 
 ################################################################################
-
 ## Health violations
 ################################################################################
 
 # Dataset on health-based violations (since 2015, national) 
 
-HB_vio <- readRDS("Data/combined/pwsid/HB_vio_epic.rds") %>%
+HB_vio <- readRDS("data/combined/HB_vio_epic.rds") %>%
   left_join(sys_code) %>%
   mutate(SystemSize = case_when(
     pop_served > 100000 ~ "VeryLarge",
@@ -103,11 +124,10 @@ summary(hb_env_poi <- glm(total_violations ~ pre1960pct + ozone + pm25 + ptsdf +
 rm(HB_vio)
 
 ################################################################################
-## Load Data 
 ## lcr violations 
 ################################################################################
 
-lcr_vio <- read_rds("Data/combined/pwsid/lcr_vio_epic.rds")  %>%
+lcr_vio <- read_rds("data/combined/lcr_vio_epic.rds")  %>%
   left_join(sys_code) %>%
   mutate(SystemSize = case_when(
     pop_served > 100000 ~ "VeryLarge",
@@ -137,15 +157,15 @@ summary(lcr_env_poi <- glm(pb_vio_count ~ pre1960pct + ozone + pm25 + ptsdf +
 # summary(lcr_env_lm <- glm(avg_pb_level ~ pre1960pct + ozone + pm25 + ptsdf + 
 #                             pwdis + pnpl + source_gw,
 #                           data = lcr_vio))
+
 rm(lcr_vio)
 
 
 ################################################################################
-## Load Data 
-## PFAS violations
+## PFAS detections
 ################################################################################
 
-pfas_vio <- read_rds("Data/combined/pwsid/pfas_vio_epic.rds")  %>%
+pfas_vio <- read_rds("data/combined/pfas_vio_epic.rds")  %>%
   left_join(sys_code) %>%
   mutate(SystemSize = case_when(
     pop_served > 100000 ~ "VeryLarge",
@@ -173,11 +193,10 @@ rm(pfas_vio)
 
 
 ################################################################################
-## Load Data 
-## DBP violations
+## DBP concentrations
 ################################################################################
 
-dbp_vio <- read_rds("Data/combined/pwsid/dbp_vio_epic.rds")  %>%
+dbp_vio <- read_rds("data/combined/dbp_vio_epic.rds")  %>%
   left_join(sys_code) %>%
   mutate(SystemSize = case_when(
     pop_served > 100000 ~ "VeryLarge",
@@ -201,11 +220,10 @@ rm(dbp_vio)
 
 
 ################################################################################
-## Load Data 
-## TCR violations
+## TCR detection rate 
 ################################################################################
 
-tcr_vio <- read_rds("Data/combined/pwsid/tcr_vio_epic.rds") %>%
+tcr_vio <- read_rds("data/combined/tcr_vio_epic.rds") %>%
   left_join(sys_code) %>%
   mutate(SystemSize = case_when(
     pop_served > 100000 ~ "VeryLarge",
@@ -226,11 +244,13 @@ summary(tcr_env_lm <- glm(detection_share ~ pre1960pct + ozone + pm25 + ptsdf +
                      data = tcr_vio))
 
 rm(tcr_vio)
+
+
 ################################################################################
-## Load Data 
 ## Arsenic concentrations
 ################################################################################
-ars_vio <- read_rds("Data/combined/pwsid/ars_vio_epic.rds")  %>%
+
+ars_vio <- read_rds("data/combined/ars_vio_epic.rds")  %>%
   left_join(sys_code) %>%
   mutate(SystemSize = case_when(
     pop_served > 100000 ~ "VeryLarge",
@@ -239,6 +259,10 @@ ars_vio <- read_rds("Data/combined/pwsid/ars_vio_epic.rds")  %>%
     pop_served > 500 ~ "Small",
     pop_served <= 500 ~ "VerySmall"
   ))
+
+# re-express these in ppb 
+ars_vio <- ars_vio %>%
+  mutate(arsenic = arsenic * 1000 )
 
 summary(ars_dem_lm <- glm(arsenic ~ frac_amerind + frac_black + frac_asian + frac_hisp + frac_pacisl + 
                               lowinc + primacy_type + relevel(factor(SystemSize), ref = "Medium") + source_gw + state_code, 
@@ -253,10 +277,10 @@ summary(ars_env_lm <- glm(arsenic ~ pre1960pct + ozone + pm25 + ptsdf +
 rm(ars_vio)
 
 ################################################################################
-## Load Data 
 ## Nitrate concentrations
 ################################################################################
-nitrate_vio <- read_rds("Data/combined/pwsid/nitrate_vio_epic.rds")  %>%
+
+nitrate_vio <- read_rds("data/combined/nitrate_vio_epic.rds")  %>%
   left_join(sys_code) %>%
   mutate(SystemSize = case_when(
     pop_served > 100000 ~ "VeryLarge",
@@ -282,23 +306,31 @@ rm(nitrate_vio)
 ## Regression tables
 ################################################################################
 
-library(stargazer)
-
 #Dem regressions
+
+  #checking that table output looks the same as the stargazer output 
+  # summary(dbp_dem_lm)
+  # summary(ars_dem_lm)
+  # summary(nitrate_dem_lm)
+  
+  # Noting there was an error message when trying to add the arsenic and nitrate regression 
+  # results. This was an issue with the Stargazer package when using r versions > 4.2, so there is som e
+  # new manual code above that allows this to run.
+  # The error was: "Error in if (is.na(s)) { : the condition has length > 1"
+
+  # for some reason the coefficients for Black and Asian were reversed.
+
 stargazer(hb_dem_poi, lcr_dem_poi, pfas_dem_poi, dbp_dem_lm, tcr_dem_lm, ars_dem_lm, nitrate_dem_lm, 
           title = "Demographic Regression Results", align = FALSE,
           column.labels = c("Health-based", "Lead", "PFAS", "DBP", "TCR", "ARS", "NITR"),
-          covariate.labels = c("\\% American Indian", "\\% Asian", "\\% Black", "\\% Hispanic", "\\% Pacific Islander",  
+          covariate.labels = c("\\% American Indian", "\\% Black", "\\% Asian", "\\% Hispanic", "\\% Pacific Islander",  
                                 "\\% Low income^{+}", "Tribal System", "Large system^{++}", "Small system", "Very Large system", "Very small system","Groundwater"),
           omit = 'state_code', 
           omit.labels = "State control",
           keep.stat = c("n", "rsq"))
 
-#notes = "^{+} Low income refers to the Pct of people below 2X the Federal Poverty Limit. ^{++} System size based on population served. Very small is fewer than
-#         500, Small fewer than 3,300, Medium fewer than 10,000 and Large between 10,000 and 100,000. Regressions based on EPIC boundary specification.")
-
-
 #Env regressions
+
 stargazer(hb_env_poi, lcr_env_poi, pfas_env_poi, dbp_env_lm, tcr_env_lm, ars_env_lm, nitrate_env_lm, 
           title = "Environmental Regression Results", align = FALSE,
           column.labels = c("Health-based", "Lead", "PFAS", "DBP", "TCR", "ARS", "NITR"),
@@ -307,4 +339,7 @@ stargazer(hb_env_poi, lcr_env_poi, pfas_env_poi, dbp_env_lm, tcr_env_lm, ars_env
           omit = 'state_code', 
           omit.labels = "State control",
           keep.stat = c("n", "rsq"))
+
+
+
 

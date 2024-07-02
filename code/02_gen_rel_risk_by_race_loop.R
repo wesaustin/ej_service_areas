@@ -64,7 +64,7 @@ colnames(pws_obs) <- c("obs", "indicator", "boundary")
 
 for (b in boundary) {
   
-  hb_vio <- readRDS(paste0('data/combined/hb_vio_',b ,'.rds'))
+  hb_vio <- readRDS(paste0('data/combined/HB_vio_',b ,'.rds'))
   
   lcr_vio <- readRDS(paste0('data/combined/lcr_vio_',b ,'.rds')) %>%
     mutate(total_violations = pb_vio_count)
