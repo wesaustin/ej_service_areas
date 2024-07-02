@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 * 00000004
+=======
+* 00000002
+>>>>>>> Stashed changes
 *! version 1.0.0
 * Do not erase or edit this file
 * It is used by Stata to track the ado and help
@@ -6,7 +10,11 @@
 
 S https://raw.githubusercontent.com/mdroste/stata-scheme-modern/master
 N scheme-modern.pkg
+<<<<<<< Updated upstream
 D 28 Jun 2024
+=======
+D 19 Apr 2024
+>>>>>>> Stashed changes
 U 1
 d 
 d 'scheme-modern': pretty stata schemes for stata
@@ -16,6 +24,7 @@ d
 f s\scheme-modern.scheme
 f s\scheme-modern_dark.scheme
 e
+<<<<<<< Updated upstream
 S http://fmwww.bc.edu/repec/bocode/g
 N grstyle.pkg
 D 28 Jun 2024
@@ -110,4 +119,26 @@ f c\colrspace_library_palettes.sthlp
 f c\colrspace_library_lsmaps.sthlp
 f c\colrspace_library_rgbmaps.sthlp
 f l\lcolrspace.mlib
+=======
+S http://www.stata-journal.com/software/sj18-4
+N gr0075.pkg
+D 19 Apr 2024
+U 2
+d SJ18-4 gr0075. Color palettes, symbol palettes, and...
+d Color palettes, symbol palettes, and line-
+d   pattern palettes
+d by Ben Jann, University of Bern, Bern,
+d      Switzerland
+d Support:  ben.jann@soz.unibe.ch
+d After installation, type help {cmd:colorpalette},
+d   {cmd:linepalette}, {cmd:palettes}, and
+d   {cmd:symbolpalette}
+f c\colorpalette.ado
+f c\colorpalette.hlp
+f l\linepalette.ado
+f l\linepalette.hlp
+f p\palettes.hlp
+f s\symbolpalette.ado
+f s\symbolpalette.hlp
+>>>>>>> Stashed changes
 e

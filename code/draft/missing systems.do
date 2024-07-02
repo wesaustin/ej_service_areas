@@ -1,9 +1,12 @@
 
 
 
-import delimited "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\NCEE - Water System Service Boundaries\data\demographics\SDWA_PUB_WATER_SYSTEMS.csv", clear 
+*import delimited "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\NCEE - Water System Service Boundaries\data\demographics\SDWA_PUB_WATER_SYSTEMS.csv", clear 
 
-keep pwsid pws_activity_code pws_type_code gw_sw_code owner_type_code primacy_type is_wholesaler_ind is_school_or_daycare_ind
+import delimited "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\DWDB\sdwis\SDWA_PUB_WATER_SYSTEMS.csv", clear 
+keep if pws_type_code == "CWS"
+keep if pws_activity_code =="A"
+keep pwsid pws_activity_code pws_type_code gw_sw_code owner_type_code primacy_type is_wholesaler_ind is_school_or_daycare_ind population_served_count
 
 tempfile wholesales
 save `wholesales'
@@ -12,19 +15,18 @@ import delimited "C:\Users\gaustin\OneDrive - Environmental Protection Agency (E
 tempfile epic_dems
 save `epic_dems'
 
-import delimited "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\NCEE - Water System Service Boundaries\data\demographics\hm_dems.csv", clear 
+import delimited "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\NCEE - Water System Service Boundaries\data\demographics\hm_pws_list.csv", clear 
 tempfile hm_dems
 save `hm_dems'
 
-use `epic_dems' , clear
+use `wholesales' , clear
 merge 1:1 pwsid using `hm_dems' , gen(m_missing)
-keep if _merge ==3 
 
-merge 1:1 pwsid using  `wholesales'
 
 * Are these just wholesalers?
 tab m_missing if is_wholesaler_ind == "Y"
 tab is_wholesaler_ind if m_missing == 1
+tab m_missing if primacy_type == "Tribal"
 	* only 350 of the missing systems are wholesalers 
 	
 * Is it just the tier 3 systems? 
