@@ -53,7 +53,11 @@ my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NC
 setwd(paste0(my_path))
 getwd()
 
+<<<<<<< Updated upstream
 plot_path <- "ej_service_areas/output/country maps/"
+=======
+plot_path <- "ej_service_areas/output/country maps/epic/"
+>>>>>>> Stashed changes
 
 ################################################################################
 ## Load tract data for all US
@@ -567,7 +571,11 @@ rm(cbg_tcr_vio, tcr_vio_all, tcr_plot)
 #   distinct(ID, .keep_all = TRUE) %>%
 #   ungroup
 
+<<<<<<< Updated upstream
 ars_vio_epic_area <- readRDS("data/combined/arsenic_vio_hm_area.rds")
+=======
+ars_vio_epic_area <- readRDS("data/combined/arsenic_vio_epic_area.rds")
+>>>>>>> Stashed changes
 cbg_ars_vio <- ars_vio_epic_area  %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   group_by(ID) %>%
