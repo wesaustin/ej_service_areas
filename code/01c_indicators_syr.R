@@ -32,7 +32,7 @@ output_dir <- 'C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)
 load(paste0(syr_dir,"syr3.RData"))
 
 # Tabulate Analyte Names
-syr3 %>%
+nitrate %>%
   group_by(analyte_name) %>%
   summarise(n = n()) %>%
   mutate(
@@ -59,7 +59,7 @@ arsenic <- syr3 %>%
   filter(analyte_name == c("ARSENIC"))  %>%
   rename(analyte_code = analyte_id) 
 nitrate <- syr3 %>%  
-  filter(analyte_name == c("NITRATE")) %>%
+  filter(analyte_name == c("NITRATE","NITRATE-NITRITE","NITRITE-NITRATE")) %>%
   rename(analyte_code = analyte_id) 
 
 # clear memory space 

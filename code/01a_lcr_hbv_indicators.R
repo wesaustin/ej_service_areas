@@ -1,7 +1,7 @@
 
 ################################################################################
 ## Generate Safe Drinking Water indicators (LCR and Health violations)
-## National Council for Environmental Economics
+## National Center for Environmental Economics
 ## Last edit: 9.14
 ################################################################################
 
@@ -28,9 +28,11 @@ pacman::p_load(
   stringr # string manipulation
 )
 
-##Set wd
+#TB
+#my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
 
-my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
+#WA
+my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
 
 getwd()
 setwd(paste0(my_path))
@@ -43,7 +45,7 @@ getwd()
 
 ## Load lcr data
 
-lcr_samp <- read_csv("C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems/Data/SDWA raw/SDWA_lcr_SAMPLES.csv")
+lcr_samp <- read_csv("data/water quality/SDWA_LCR_SAMPLES.csv")
 
 ## find the samples exceeding 0.015 mg/l lead and 1.3mg/L for copper, 
 # Group by violation type and by PWSID
@@ -93,7 +95,7 @@ lcr_vio <- lcr_vio %>%
 
 summary(lcr_vio$pb_vio_count)
 
-write_rds(lcr_vio, "Data/lcr_violations.rds")
+write_rds(lcr_vio, "ej_service_areas/data/indicators/lcr_violations_v2.rds")
 
 ################################################################################
 ## Health-based Violations
@@ -102,9 +104,9 @@ write_rds(lcr_vio, "Data/lcr_violations.rds")
 ### Load SDWA Violations data
 
 
-SDWA_vio <- read_csv("Data/SDWA_vio_ENFORCEMENT.csv")
+SDWA_vio <- read_csv("data/water quality/SDWA_VIOLATIONS_ENFORCEMENT.csv")
 
-## Filter out data to to violations that started after 2015 
+## Filter out data to violations that started after 2015 
 ## Restrict to only health-based violations
 
 SDWA_vio$COMPL_PER_END_DATE <- 
@@ -127,7 +129,7 @@ SDWA_vio_2015$COMPL_PER_END_DATE[is.na(SDWA_vio_2015$COMPL_PER_END_DATE)] <- '20
 SDWA_vio_2015 <- SDWA_vio_2015 %>%
   mutate(diff_days = difftime(COMPL_PER_END_DATE, COMPL_PER_BEGIN_DATE, units="days"))
 
-glimpse(SDWA_vio2015) #check that the numbers make sense
+glimpse(SDWA_vio_2015) #check that the numbers make sense
 
 ## Now we have the non-compliance period in days, which we can use to calculate months/years
 
@@ -154,6 +156,6 @@ glimpse(SDWA_vio_clean)
 ## I Selected the type of violation, the status (to include whether a violation is still in
 ## progress), the total number of violations, and the maximum violation time-span
 
-write.csv(SDWA_vio_clean, "Data/health_violations_2015.csv")
+write.csv(SDWA_vio_clean, "ej_service_areas/data/indicators/health_violations_2015.csv")
 
 

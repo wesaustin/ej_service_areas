@@ -1,7 +1,7 @@
 ################################################################################
 # Bivariate maps for drinking water indicators : country maps
 # National Center for Environmental Economics
-# Last edited: 10/6/30
+# Last edited: 7/2/24
 ################################################################################
 
 # Drawing from code developed by Wes Austin for a biscale function with action levels 
@@ -36,22 +36,29 @@ pacman::p_load(
 # 
 # remotes::install_github("chris-prener/biscale", force = TRUE)
 library(biscale)
+library(extrafont)
+
 
 ################################################################################
 ##Set directories
 ################################################################################
 
+#TB
 my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
+
+#WA
+my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
+
 
 getwd()
 setwd(paste0(my_path))
 getwd()
 
-plot_path <- "Plots/country/bivariate_maps/"
+plot_path <- "ej_service_areas/output/bivariate maps/"
 
 # Source code for bi_scale manipulations
 
-source("Code/biscale_fn_action_level.R")
+source("ej_service_areas/code/data_cleaning/biscale_fn_action_level.R")
 
 custom_pal = c(
   "1-1" = "#d3d3d3", # low x, low y
@@ -70,10 +77,9 @@ custom_pal = c(
 ## Load cbg data for all US
 ################################################################################
 
-US_cbg_crop <- readRDS("ej_service_areas/data/census_geo/US_cbg_crop.rds") 
+US_cbg_crop <- readRDS("data/census_geo/US_cbg_crop.rds") 
 
-US_st_crop <- readRDS("ej_service_areas/data/census_geo/US_st_crop.rds")
-
+US_st_crop <- readRDS("data/census_geo/US_st_crop.rds")
 
 ################################################################################
 ## Health violations
@@ -788,3 +794,251 @@ dev.off()
 
 rm(tcr_vio_all, cbg_tcr_vio, tcr_lowinc, tcr_minor)
 
+
+
+
+
+
+################################################################################
+## Arsenic Concentrations
+################################################################################
+
+cbg_ars_vio <- readRDS("data/combined/arsenic_vio_hm_area.rds") %>%
+  mutate(ID = as.character(ID)) %>%
+  mutate(ID=str_pad(ID, 12, pad="0"))
+
+cbg_ars_vio <- cbg_ars_vio %>%
+  group_by(ID) %>%
+  mutate(avg_vio_cbg = mean(arsenic, na.rm = TRUE)) %>%
+  distinct(ID, .keep_all = TRUE) 
+
+cbg_ars_vio <- cbg_ars_vio %>%
+  mutate(avg_vio_cbg = avg_vio_cbg * 1000 ) #convert to ppb
+
+ars_vio_all <- left_join(US_cbg_crop, cbg_ars_vio) 
+st_as_sf(ars_vio_all)
+
+################################################################################
+## Create bivariate map
+################################################################################
+
+
+summary(ars_vio_all$avg_vio_cbg)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+#    0.00    0.00    0.00    0.93    0.50  176.00   77727 
+
+action_vector <- c(1,10) #arsenic levels of above a common reportng limit and above the MCL of 10. 
+
+## Map 1: Health based violations and % POC
+
+#Establish biscale comparison: HB violations and % POC
+
+data_biscale_al <- bi_class_al(ars_vio_all,
+                               x = avg_vio_cbg, y = minorpct, #% POC
+                               style = "quantile", dim = 3,
+                               action_level = T, action_vector = action_vector) %>%
+  filter(!str_detect(bi_class, 'NA'))
+
+map <- ggplot(data_biscale_al) +
+  geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA,
+          size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = custom_pal, dim = 3) +
+  bi_theme() +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  theme(plot.background = element_blank()) 
+
+breaks <- list(bi_x = c("0", "1", "10", ">10"),
+               bi_y = c("0", "0.11", "0.63", "1"))
+
+legend <- bi_legend(pal = custom_pal,
+                    dim = 3,
+                    xlab = "Arsenic →",
+                    ylab = "% People of color →",
+                    size = 20,
+                    breaks = breaks,
+                    arrows = FALSE)
+
+
+# Plot and legend
+
+hb_minor <- cowplot::ggdraw() +
+  draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+
+
+png(file = paste0(plot_path,"ars_POC_biv_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 12,
+    bg = "transparent")
+
+print(hb_minor)
+
+dev.off()
+
+## Low income
+
+summary(cbg_HB_vio$lowinc)
+
+#Establish biscale comparison: HB violations and % Low Income
+
+data_biscale_al <- bi_class_al(ars_vio_all,
+                               x = avg_vio_cbg, y = lowinc, #%Low income
+                               style = "quantile", dim = 3,
+                               action_level = T, action_vector = action_vector) %>%
+  filter(!str_detect(bi_class, 'NA'))
+
+# Map 2: Biscale violations: arsenic concentrations and low income
+
+map <- ggplot(data_biscale_al) +
+  geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA, 
+          size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = custom_pal, dim = 3) +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  bi_theme() +
+  theme(plot.background = element_blank())
+
+breaks <- list(bi_x = c("0", "1", "10", ">10"),
+               bi_y = c("0", "0.15", "0.47", "1"))
+
+
+legend <- bi_legend(pal = custom_pal,
+                    dim = 3,
+                    xlab = "Arsenic →",
+                    ylab = "% Low income →",
+                    size = 20,
+                    breaks = breaks,
+                    arrows = FALSE)
+
+
+# Plot and legend
+
+ars_lowinc <- cowplot::ggdraw() +
+  draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+
+png(file = paste0(plot_path,"ars_lowinc_biv_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 12,
+    bg = "transparent")
+
+print(ars_lowinc)
+
+dev.off()
+
+
+
+
+################################################################################
+## Nitrate Concentrations
+################################################################################
+
+cbg_nit_vio <- readRDS("data/combined/nitrate_vio_hm_area.rds") %>%
+  mutate(ID = as.character(ID)) %>%
+  mutate(ID=str_pad(ID, 12, pad="0"))
+
+cbg_nit_vio <- cbg_nit_vio %>%
+  group_by(ID) %>%
+  mutate(avg_vio_cbg = mean(nitrate, na.rm = TRUE)) %>%
+  distinct(ID, .keep_all = TRUE) 
+
+nit_vio_all <- left_join(US_cbg_crop, cbg_nit_vio) 
+st_as_sf(nit_vio_all)
+
+################################################################################
+## Create bivariate map
+################################################################################
+
+
+summary(nit_vio_all$avg_vio_cbg)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+#    0.00    0.00    0.00    0.93    0.50  176.00   77727 
+
+action_vector <- c(2,10) #nitrate levels of above a common action level and above the MCL of 10. 
+
+## Map 1: Health based violations and % POC
+
+#Establish biscale comparison: HB violations and % POC
+
+data_biscale_al <- bi_class_al(nit_vio_all,
+                               x = avg_vio_cbg, y = minorpct, #% POC
+                               style = "quantile", dim = 3,
+                               action_level = T, action_vector = action_vector) %>%
+  filter(!str_detect(bi_class, 'NA'))
+
+map <- ggplot(data_biscale_al) +
+  geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA,
+          size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = custom_pal, dim = 3) +
+  bi_theme() +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  theme(plot.background = element_blank()) 
+
+breaks <- list(bi_x = c("0", "2", "10", ">10"),
+               bi_y = c("0", "0.11", "0.63", "1"))
+
+legend <- bi_legend(pal = custom_pal,
+                    dim = 3,
+                    xlab = "Nitrates →",
+                    ylab = "% People of color →",
+                    size = 20,
+                    breaks = breaks,
+                    arrows = FALSE)
+
+
+# Plot and legend
+
+nit_minor <- cowplot::ggdraw() +
+  draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+
+
+png(file = paste0(plot_path,"nit_POC_biv_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 12,
+    bg = "transparent")
+
+print(nit_minor)
+
+dev.off()
+
+## Low income
+
+data_biscale_al <- bi_class_al(nit_vio_all,
+                               x = avg_vio_cbg, y = lowinc, #%Low income
+                               style = "quantile", dim = 3,
+                               action_level = T, action_vector = action_vector) %>%
+  filter(!str_detect(bi_class, 'NA'))
+
+# Map 2: Biscale violations: nitrate concentrations and low income
+
+map <- ggplot(data_biscale_al) +
+  geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA, 
+          size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = custom_pal, dim = 3) +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  bi_theme() +
+  theme(plot.background = element_blank())
+
+breaks <- list(bi_x = c("0", "2", "10", ">10"),
+               bi_y = c("0", "0.15", "0.47", "1"))
+
+
+legend <- bi_legend(pal = custom_pal,
+                    dim = 3,
+                    xlab = "Nitrates →",
+                    ylab = "% Low income →",
+                    size = 20,
+                    breaks = breaks,
+                    arrows = FALSE)
+
+
+# Plot and legend
+
+nit_lowinc <- cowplot::ggdraw() +
+  draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+
+png(file = paste0(plot_path,"nit_lowinc_biv_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 12,
+    bg = "transparent")
+
+print(nit_lowinc)
+
+dev.off()

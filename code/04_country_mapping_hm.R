@@ -60,7 +60,9 @@ plot_path <- "ej_service_areas/output/country maps/hm/"
 ## Load tract data for all US
 ################################################################################
 
-#Retreive census geography
+# Only need to run this once 
+
+#Retrieve census geography
 
 US_cbg <- tigris::block_groups(state = NULL, county = NULL, cb = TRUE, year = 2021) %>%
   tigris::shift_geometry()  # this puts Alaska and Hawaii underneath the CUS
@@ -660,9 +662,8 @@ cbg_nitrate_vio <- read_rds("data/combined/nitrate_vio_hm_area.rds")  %>%
 # Combine with geographic data for US cbgs
 
 nitrate_vio_all <- left_join(US_cbg_crop, cbg_nitrate_vio, by = "ID", relationship = "many-to-many") %>% 
-  st_as_sf() 
-# %>%
-#  mutate(nitrate_tr = if_else(avg_cbg_vio > .1, .1, avg_cbg_vio))
+  st_as_sf()  %>%
+ mutate(nitrate_tr = if_else(avg_cbg_vio > 20, 20, avg_cbg_vio))
 
 summary(cbg_nitrate_vio$avg_cbg_vio)
 summary(nitrate_vio_all$avg_cbg_vio)
@@ -673,7 +674,7 @@ summary(nitrate_vio_all$avg_cbg_vio)
 
 
 nitrate_plot <- ggplot() + 
-  geom_sf(data = nitrate_vio_all, aes(fill = nitrate, geometry = geometry), color = NA) +
+  geom_sf(data = nitrate_vio_all, aes(fill = nitrate_tr, geometry = geometry), color = NA) +
   scale_fill_distiller(name = "", palette = "RdPu", 
                        direction = 1, 
                        #limits=c(0,0.25), 
