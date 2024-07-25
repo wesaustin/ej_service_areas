@@ -100,60 +100,63 @@ write_rds(lcr_vio, "Data/lcr_violations.rds")
 ################################################################################
 
 ### Load SDWA Violations data
-
-
 SDWA_vio <- read_csv("Data/SDWA_vio_ENFORCEMENT.csv")
 
 ## Filter out data to to violations that started after 2015 
 ## Restrict to only health-based violations
+sdwa_vio <- SDWA_vio %>%
+  mutate(COMPL_PER_END_DATE = mdy(COMPL_PER_END_DATE),
+         COMPL_PER_BEGIN_DATE = mdy(COMPL_PER_BEGIN_DATE),
+         VIOL_FIRST_REPORTED_DATE = mdy(VIOL_FIRST_REPORTED_DATE))
+         
+sdwa_vio_2015 <- sdwa_vio[sdwa_vio$COMPL_PER_BEGIN_DATE >= "2015-01-01",]
 
-SDWA_vio$COMPL_PER_END_DATE <- 
-  mdy(SDWA_vio$COMPL_PER_END_DATE) #index data to MDY format
-
-SDWA_vio$COMPL_PER_BEGIN_DATE <- 
-  mdy(SDWA_vio$COMPL_PER_BEGIN_DATE)  #index data to MDY format
-
-SDWA_vio_2015 <- SDWA_vio %>%
-  filter(COMPL_PER_BEGIN_DATE > '2015-01-01') %>% #after 2015
+sdwa_vio_2015 <- sdwa_vio_2015 %>%
   filter(IS_HEALTH_BASED_IND == "Y") #health based violations
 
 ## Fill null values for compliance end date to compute violation lengths
 ## Used date when the data was collected (in this case 07.07.2023)
 
-SDWA_vio_2015$COMPL_PER_END_DATE[is.na(SDWA_vio_2015$COMPL_PER_END_DATE)] <- '2023-07-07' #match the date format, verify
+sdwa_vio_2015$COMPL_PER_END_DATE[is.na(sdwa_vio_2015$COMPL_PER_END_DATE)] <- as.Date('2023-07-07') #match the date format, verify
+
+saveRDS(sdwa_vio_2015, file = "Data/sdwa_hb_vio_2015.rds")
 
 ## Calculate the length of the violation 
 
-SDWA_vio_2015 <- SDWA_vio_2015 %>%
-  mutate(diff_days = difftime(COMPL_PER_END_DATE, COMPL_PER_BEGIN_DATE, units="days"))
+sdwa_vio_2015 <- sdwa_vio_2015 %>%
+  clean_names()
 
-glimpse(SDWA_vio2015) #check that the numbers make sense
+sdwa_vio <- sdwa_vio_2015 %>%
+  mutate(calculated_rtc_date = mdy(calculated_rtc_date))
 
-## Now we have the non-compliance period in days, which we can use to calculate months/years
+sdwa_vio$compl_per_end_date[sdwa_vio$compl_per_end_date > '2023-07-07'] <- as.Date('2023-07-07')
 
-## Calculate the total number of violations per PWSID
+sdwa_vio <- sdwa_vio %>%
+  mutate(diff_days = as.numeric(difftime(compl_per_end_date, compl_per_begin_date, units="days")))
 
-SDWA_vio_2015 <- SDWA_vio_2015 %>%
-  group_by(PWSID) %>%
-  mutate(total_violations = n()) #number of violations per PWSID
+## Calculate the total number of violations per PWSID, then collapse to pwsid level
 
-##Select one observation per PWSID, keeping, for example, longest violation period 
-
-SDWA_vio_2015 <- SDWA_vio_2015 %>%
-  ungroup() %>%
-  filter(diff_days == max(diff_days), .by = PWSID) %>%
-  distinct(PWSID, .keep_all = TRUE)
+sdwa_vio_pwsid <- sdwa_vio %>%
+  group_by(pwsid) %>%
+  mutate(dist_vio = n_distinct(violation_id), 
+         dist_enf = n_distinct(enforcement_id),
+         dist_vio_type = n_distinct(violation_code),
+         diff_days_max = max(diff_days)) %>%
+  distinct(pwsid, .keep_all = TRUE)
 
 ##Keep necessary columns
 
-SDWA_vio_clean <- SDWA_vio_2015 %>%
-  dplyr::select(PWSID, VIOLATION_CATEGORY_CODE, VIOLATION_STATUS, diff_days, total_violations)
-
-glimpse(SDWA_vio_clean)
+sdwa_vio_clean <- sdwa_vio_pwsid %>%
+  dplyr::select(pwsid, starts_with("dist"), diff_days_max) %>%
+  rename(total_violations = dist_vio)
 
 ## I Selected the type of violation, the status (to include whether a violation is still in
 ## progress), the total number of violations, and the maximum violation time-span
 
-write.csv(SDWA_vio_clean, "Data/health_violations_2015.csv")
+write.csv(sdwa_vio_clean, "Data/health_violations_2015.csv")
 
+saveRDS(sdwa_vio_clean, "Data/health_violations_2015.rds")
 
+sdwa_vio_clean <- readRDS("Data/health_violations_2015.rds")
+
+sum(sdwa_vio_clean$total_violations)
