@@ -48,21 +48,19 @@ pacman::p_load(
 my_path <- "C:/Users/tbardot/OneDrive - Environmental Protection Agency (EPA)/Documents/EJ Water systems"
 
 #WA
-my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
+#my_path <- "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries"
 
 setwd(paste0(my_path))
 getwd()
 
-plot_path <- "ej_service_areas/output/country maps/hm/"
+plot_path <- "Plots/country/hm/"
 
 
 ################################################################################
 ## Load tract data for all US
 ################################################################################
 
-# Only need to run this once 
-
-#Retrieve census geography
+#Retreive census geography
 
 US_cbg <- tigris::block_groups(state = NULL, county = NULL, cb = TRUE, year = 2021) %>%
   tigris::shift_geometry()  # this puts Alaska and Hawaii underneath the CUS
@@ -114,21 +112,23 @@ US_st_crop <- st_crop(US_50, bbox)
 
 ## Save files to save on future computation time
 
-saveRDS(US_cbg_crop, file = "ej_service_areas/data/census_geo/US_cbg_crop.rds")
+saveRDS(US_cbg_crop, file = "Data/census_geo/US_cbg_crop.rds")
 
-saveRDS(US_st_crop, file = "ej_service_areas/data/census_geo/US_st_crop.rds")
+saveRDS(US_st_crop, file = "Data/census_geo/US_st_crop.rds")
 
 rm(US_48, US_cbg, US_cbg_50, US_50)
 
-US_cbg_crop <- readRDS("ej_service_areas/data/census_geo/US_cbg_crop.rds") 
+US_cbg_crop <- readRDS("Data/census_geo/US_cbg_crop.rds") %>%
+  mutate(ID=str_pad(ID, 12, pad="0")) %>%
+  mutate(ID = as.character(ID)) 
 
-US_st_crop <- readRDS("ej_service_areas/data/census_geo/US_st_crop.rds")
+US_st_crop <- readRDS("Data/census_geo/US_st_crop.rds")
 
 ################################################################################
 ## Health violations
 ################################################################################
 
-cbg_HB_vio <- read_rds("data/combined/HB_vio_hm_area.rds")  %>%
+cbg_HB_vio <- read_rds("Data/combined/area/HB_vio_hm_area.rds")  %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   group_by(ID) %>%
   mutate(avg_cbg_vio = mean(total_violations)) %>%
@@ -140,27 +140,21 @@ cbg_HB_vio <- read_rds("data/combined/HB_vio_hm_area.rds")  %>%
 HB_vio_all <- left_join(US_cbg_crop, cbg_HB_vio, by = "ID", relationship = "many-to-many") %>% 
   st_as_sf()
 
-summary(US_cbg_crop$ID)
 
-summary(cbg_HB_vio$total_violations)
+# Tract level 
 
-summary(cbg_HB_vio$avg_cbg_vio)
+tract_HB_vio <- cbg_HB_vio %>%
+  mutate(tract = substring(ID, first=1, last=11)) %>%
+  group_by(tract) %>%
+  mutate(avg_vio_tract = sum(total_violations*ACSTOTPOP)/sum(ACSTOTPOP), na.rm = TRUE) %>% #average violations per tract
+  distinct(tract, .keep_all = TRUE) 
 
+HB_vio_all <- left_join(US_tract_50, tract_HB_vio, by = "tract") #note to rerun this if you are doing tract and tract level, right now comb share the same name
 
-# # Tract level 
-# 
-# tract_HB_vio <- cbg_HB_vio %>%
-#   mutate(tract = substring(ID, first=1, last=11)) %>%
-#   group_by(tract) %>%
-#   mutate(avg_vio_tract = sum(total_violations*ACSTOTPOP)/sum(ACSTOTPOP), na.rm = TRUE) %>% #average violations per tract
-#   distinct(tract, .keep_all = TRUE) 
-# 
-# HB_vio_all <- left_join(US_tract_50, tract_HB_vio, by = "tract") #note to rerun this if you are doing tract and tract level, right now comb share the same name
-# 
-# st_as_sf(HB_vio_all)
-# 
-# summary(HB_vio_all$avg_vio_tract)
-# #3rd qt = 1.35
+st_as_sf(HB_vio_all)
+
+summary(HB_vio_all$avg_vio_tract)
+#3rd qt = 1.35
 
 ################################################################################
 # HB Violations Maps
@@ -172,20 +166,22 @@ HB_vio_plot <- ggplot() +
   geom_sf(data = HB_vio_all, aes(fill = avg_cbg_vio, geometry = geometry), 
           color = NA) +
   scale_fill_distiller(name = "", palette = "Reds", 
-                       direction = 1, limits=c(0,25), breaks = c(0,25), 
-                       labels = c(0,">25"), 
+                       direction = 1, 
+                       # limits=c(0,10), 
+                       #breaks = c(0,10), 
+                       # labels = c(0,">10"), 
                        na.value = scales::alpha("#DCDCDC", 0.20)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
 # Following saves as a png, but takes a minute; maintains the lack of boundaries  
 
-png(file = paste0(plot_path,"HB_vio_cbg_US.png"), 
-    width = 1915, height = 1077, units = "px", pointsize = 28,
+png(file = paste0(plot_path,"HB_vio_cbg_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 32,
     bg = "transparent")
 
 print(HB_vio_plot)
@@ -208,28 +204,28 @@ HB_vio_plot <- ggplot() +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank())  
 
 # Following saves as a png, but takes a minute; maintains the lack of boundaries  
 
-png(file = paste0(plot_path,"HB_vio_trunc_US.png"), 
-    width = 1915, height = 1077, units = "px", pointsize = 28,
+png(file = paste0(plot_path,"HB_vio_trunc_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 32,
     bg = "transparent")
 
 print(HB_vio_plot)
 
 dev.off()
 
-rm(HB_vio_all, HB_vio_plot, cbg_HB_vio)
+rm(HB_vio_all, HB_vio_plot, cbg_HB_vio, hb_vio_trunc)
 
 
 ################################################################################
 ## LCR violations
 ################################################################################
 
-cbg_lcr_vio <- read_rds("data/combined/lcr_vio_hm_area.rds") #load lcr data
+cbg_lcr_vio <- readRDS("Data/combined/area/lcr_vio_hm_area.rds") #load lcr data
 
 # CBG
 
@@ -237,7 +233,6 @@ cbg_lcr_vio <- cbg_lcr_vio %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   mutate(ID = as.character(ID)) %>%
   group_by(ID) %>%
-  mutate(tids = paste(pwsid, sep = ", "))  %>%
   mutate(pb_vio_cbg = mean(pb_vio_count)) %>% #average number of lead violations per CBG
   mutate(cu_vio_cbg = mean(cu_vio_count)) %>% #average number of copper violations per CBG
   mutate(avg_pb_cbg = mean(avg_pb_level)) %>% #average lead levels per CBG
@@ -283,23 +278,23 @@ gr_scale <- c(
   '#000000'
 )
 
-summary(lcr_vio_all$avg_pb_level) #distribution
+# summary(lcr_vio_all$avg_pb_level) #distribution
 
 lcr_plot <- ggplot() + 
   geom_sf(data = lcr_vio_all, aes(fill = avg_pb_cbg, geometry = geometry), color = NA) +
-  scale_fill_gradientn(name = "90th Percentile\nLead levels\n(1991-2020)", colours = gr_scale, 
-                       #  direction = 1, 
-                       limits=c(0,0.015), breaks = c(0,0.005, 0.010, 0.015), 
-                       labels = c(0, 0.005, 0.010, ">0.015"),
+  scale_fill_gradientn(name = "", colours = gr_scale, 
+                        # direction = 1, 
+                       # limits=c(0,0.015), breaks = c(0,0.005, 0.010, 0.015), 
+                       # labels = c(0, 0.005, 0.010, ">0.015"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"pb_levels_US.png"), 
+png(file = paste0(plot_path,"pb_levels_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -317,7 +312,7 @@ summary(lcr_vio_all$pb_vio_cbg) #distribution
 
 pb_trunc_plot <- ggplot() + 
   geom_sf(data = lcr_vio_trunc, aes(fill = pb_lvl_trunc, geometry = geometry), color = NA) +
-  scale_fill_gradientn(name = "Average lead\n90th percentile\nvalues\n(1991-2021)", colours = gr_scale, 
+  scale_fill_gradientn(name = "", colours = gr_scale, 
                        #  direction = 1, 
                        limits=c(0,0.015), breaks = c(0,0.005, 0.010, 0.015), 
                        labels = c(0, 0.005, 0.010, ">0.015"),
@@ -325,11 +320,11 @@ pb_trunc_plot <- ggplot() +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"pb_trunc_US.png"), 
+png(file = paste0(plot_path,"pb_conc_trunc_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -349,11 +344,11 @@ pb_ale_plot <- ggplot() +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"pb_ale_US.png"), 
+png(file = paste0(plot_path,"pb_ale_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -367,19 +362,28 @@ rm(lcr_vio_all, cbg_lcr_vio, lcr_plot, pb_trunc_plot)
 ## PFAS violations
 ################################################################################
 
-cbg_pfas_vio <- read_rds("data/combined/pfas_vio_hm_area.rds") %>%
+cbg_pfas_vio <- read_rds("Data/combined/area/pfas_vio_hm_area.rds")  %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   mutate(ID = as.character(ID)) %>% #load pfas data
   group_by(ID) %>%
-  mutate(tids = paste(pwsid, sep = ", "))  %>%
-  mutate(cbg_pfas_count = mean(pfas_count)) %>% #avg pfas count per cbg
-  mutate(avg_conc_cbg = mean(concentration_sum)) %>% #avg pfas concentration per cbg
+  mutate(cbg_pfas_count = mean(pfas_count, na.rm = T)) %>% #avg pfas count per cbg
+  mutate(avg_conc_cbg = mean(concentration_avg, na.rm = T)) %>% #avg pfas concentration per cbg
+  mutate(avg_max_pfas = mean(concentration_max, na.rm = T)) %>%
+  mutate(trunc_max = ifelse(avg_max_pfas >1000, 1000, avg_max_pfas)) %>%
+  mutate(avg_det_share = mean(detection_share, na.rm = T)) %>%
+  mutate(conc_avg_trunc = ifelse(avg_conc_cbg > 70, 70, avg_conc_cbg)) %>%
   distinct(ID, .keep_all = TRUE) 
 
 pfas_vio_all <- left_join(US_cbg_crop, cbg_pfas_vio) 
 
 summary(cbg_pfas_vio$cbg_pfas_count) 
 # 2.0
+
+summary(cbg_pfas_vio$avg_max_pfas) 
+
+summary(cbg_pfas_vio$avg_conc_cbg) 
+#     Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+#   0.000   0.000   0.000   7.579   6.259 836.900   25474 
 
 ################################################################################
 ## PFAS Violations Maps
@@ -389,7 +393,7 @@ summary(cbg_pfas_vio$cbg_pfas_count)
 
 pfas_plot <- ggplot() + 
   geom_sf(data = pfas_vio_all, aes(fill = cbg_pfas_count, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Unique PFAS\ndetected\n(2013-2023)", palette = "GnBu", 
+  scale_fill_distiller(name = "", palette = "GnBu", 
                        direction = 1, 
                        # limits=c(0,9),
                        # breaks = c(0,9),
@@ -398,11 +402,11 @@ pfas_plot <- ggplot() +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"pfas_vio_cbg_US.png"), 
+png(file = paste0(plot_path,"pfas_count_cbg_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -410,27 +414,45 @@ print(pfas_plot)
 
 dev.off()
 
-# Truncated data
-
-pfas_vio_trunc <- pfas_vio_all %>%
-  mutate(pfas_count_trunc = ifelse(cbg_pfas_count >= 9, 9, cbg_pfas_count))
+# Max PFAS 
 
 pfas_plot <- ggplot() + 
-  geom_sf(data = pfas_vio_trunc, aes(fill = pfas_count_trunc, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "Unique PFAS\ndetected\n(2013-2023)", palette = "GnBu", 
+  geom_sf(data = pfas_vio_all, aes(fill = trunc_max, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "", palette = "GnBu", 
                        direction = 1, 
-                       limits=c(0,9),
-                       breaks = c(0,9),
-                       labels = c(0, ">9"),
+                       limits=c(0,1000),
+                       breaks = c(0,1000),
+                       labels = c(0, ">1000"),
                        na.value = scales::alpha("#DCDCDC", 0.75)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"pfas_vio_trunc_US.png"), 
+png(file = paste0(plot_path,"pfas_max_1k_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 20,
+    bg = "transparent")
+
+print(pfas_plot)
+
+dev.off()
+# Truncated data
+
+pfas_plot <- ggplot() + 
+  geom_sf(data = pfas_vio_all, aes(fill = avg_det_share, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "", palette = "GnBu", 
+                       direction = 1, 
+na.value = scales::alpha("#DCDCDC", 0.75)) +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  coord_sf() +
+  theme_void() +
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
+        legend.box.background = element_blank()) 
+
+png(file = paste0(plot_path,"pfas_det_share_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -438,23 +460,46 @@ print(pfas_plot)
 
 dev.off()
 
-rm(pfas_vio_trunc, pfas_vio_all, cbg_pfas_vio, pfas_plot)
+# Average PFAS
 
+pfas_plot <- ggplot() + 
+  geom_sf(data = pfas_vio_all, aes(fill = conc_avg_trunc, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "", palette = "GnBu", 
+                       direction = 1, 
+                       limits=c(0,70),
+                       breaks = c(0,70),
+                       labels = c(0, ">70"),
+                       na.value = scales::alpha("#DCDCDC", 0.75)) +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  coord_sf() +
+  theme_void() +
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
+        legend.box.background = element_blank()) 
+
+png(file = paste0(plot_path,"pfas_conc_av_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 20,
+    bg = "transparent")
+
+print(pfas_plot)
+
+dev.off()
+
+##
+
+rm(pfas_vio_all, cbg_pfas_vio, pfas_plot)
 
 
 ################################################################################
 ## DBP violations
 ################################################################################
 
-cbg_dbp_vio <- read_rds("data/combined/dbp_vio_hm_area_v2.rds") %>%
+cbg_dbp_vio <- read_rds("Data/combined/area/dbp_vio_hm_area_v2.rds") %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
-  mutate(ID = as.character(ID))
-
-# CBG
-
-cbg_dbp_vio <- cbg_dbp_vio %>%
+  mutate(ID = as.character(ID)) %>%
   group_by(ID) %>%
-  mutate(avg_dbp_cbg = mean(combined_dbp)) %>%
+  mutate(avg_dbp_cbg = mean(combined_dbp), 
+         dbp_cbg_trunc = ifelse(avg_dbp_cbg >= 80, 80, avg_dbp_cbg)) %>%
   distinct(ID, .keep_all = TRUE) 
 
 dbp_vio_all <- left_join(US_cbg_crop, cbg_dbp_vio) 
@@ -468,49 +513,25 @@ summary(dbp_vio_all$avg_dbp_cbg) #distribution
 # Map 8 : DBP violations CBG
 
 dbp_plot <- ggplot() + 
-  geom_sf(data = dbp_vio_all, aes(fill = avg_dbp_cbg, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "", palette = "Blues", 
-                       direction = 1, limits=c(0,60), breaks = c(0,60), labels = c(0,">60"), 
-                       na.value = scales::alpha("#DCDCDC", 0.5)) +
-  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
-  coord_sf() +
-  theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
-        legend.box.background = element_blank()) 
-
-png(file = paste0(plot_path,"dbp_vio_cbg_US.png"), 
-    width = 1915, height = 1077, units = "px", pointsize = 20,
-    bg = "transparent")
-
-print(dbp_plot)
-
-dev.off()
-
-# Truncated plot
-
-dbp_vio_trunc <- dbp_vio_all %>%
-  mutate(dbp_cbg_trunc = ifelse(avg_dbp_cbg >= 80, 80, avg_dbp_cbg))
-
-dbp_plot <- ggplot() + 
-  geom_sf(data = dbp_vio_trunc, aes(fill = dbp_cbg_trunc, geometry = geometry), color = NA) +
+  geom_sf(data = dbp_vio_all, aes(fill = dbp_cbg_trunc, geometry = geometry), color = NA) +
   scale_fill_distiller(name = "", palette = "Blues", 
                        direction = 1, limits=c(0,80), breaks = c(0,80), labels = c(0,">80"), 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"dbp_vio_trunc_US.png"), 
+png(file = paste0(plot_path,"combined_dbp_US.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
 print(dbp_plot)
 
 dev.off()
+
 
 rm(dbp_vio_all, cbg_dbp_vio, dbp_plot)
 
@@ -518,29 +539,31 @@ rm(dbp_vio_all, cbg_dbp_vio, dbp_plot)
 ## TCR violations
 ################################################################################
 
-cbg_tcr_vio <-read_rds("data/combined/tcr_vio_hm_area.rds") %>%
+cbg_tcr_vio <-read_rds("Data/combined/area/tcr_vio_hm_area.rds") %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   mutate(ID = as.character(ID)) %>%
   group_by(ID) %>%
-  mutate(tcr_det_cbg = mean(detection_share)) %>%
-  mutate(tids = paste(pwsid, sep = ", "))  %>%
+  mutate(tcr_det_cbg = mean(detection_share),
+         tcr_det_trunc = ifelse(tcr_det_cbg >= 0.10, 0.10, tcr_det_cbg)) %>%
   distinct(ID, .keep_all = TRUE) %>%
   ungroup
 
 count <- count(cbg_tcr_vio, st_abbrev)
 
-summary <- cbg_tcr_vio %>%
+tcr_vio_all <- left_join(US_cbg_crop, cbg_tcr_vio) 
+
+summary <- tcr_vio_all %>%
+  st_drop_geometry() %>%
+  filter(!is.na(tcr_det_cbg)) %>%
   group_by(st_abbrev) %>%
   summarize(mean = mean(tcr_det_cbg, na.rm =TRUE),
             obs = n()) %>%
   mutate(mean = format(mean, scientific = FALSE))
 
-tcr_vio_all <- left_join(US_cbg_crop, cbg_tcr_vio) 
-
 summary(tcr_vio_all$tcr_det_cbg) #distribution
 
 ################################################################################
-## TCR Detection Rate Maps
+## TCR violations Maps
 ################################################################################
 
 # Map 10 : TCR violations CBG
@@ -548,16 +571,17 @@ summary(tcr_vio_all$tcr_det_cbg) #distribution
 tcr_plot <- ggplot() + 
   geom_sf(data = tcr_vio_all, aes(fill = tcr_det_cbg, geometry = geometry), color = NA) +
   scale_fill_distiller(name = "", palette = "YlOrRd", 
-                       direction = 1, limits=c(0,0.10), breaks = c(0,0.10), labels = c(0,">0.10"),
+                       direction = 1, 
+                       #limits=c(0,0.10), breaks = c(0,0.10), labels = c(0,">0.10"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"tcr_vio_cbg_US.png"), 
+png(file = paste0(plot_path,"tcr_vio_cbg_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -565,22 +589,19 @@ print(tcr_plot)
 
 dev.off()
 
-tcr_vio_trunc <- tcr_vio_all %>%
-  mutate(tcr_det_trunc = ifelse(tcr_det_cbg >= 0.10, 0.10, tcr_det_cbg))
-
 tcr_plot <- ggplot() + 
-  geom_sf(data = tcr_vio_trunc, aes(fill = tcr_det_trunc, geometry = geometry), color = NA) +
+  geom_sf(data = tcr_vio_all, aes(fill = tcr_det_trunc, geometry = geometry), color = NA) +
   scale_fill_distiller(name = "", palette = "YlOrRd", 
                        direction = 1, limits=c(0,0.10), breaks = c(0,0.10), labels = c(0,">0.10"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"tcr_vio_trunc_US.png"), 
+png(file = paste0(plot_path,"tcr_det_share_trunc_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -590,31 +611,26 @@ dev.off()
 
 rm(tcr_plot, tcr_vio_all, cbg_tcr_vio)
 
-
 ################################################################################
-## Arsenic Concentrations
+## Arsenic concentration Maps
 ################################################################################
 
 
-
-cbg_ars_vio <- read_rds("data/combined/arsenic_vio_hm_area.rds")  %>%
+cbg_ars_vio <- read_rds("Data/combined/area/arsenic_vio_hm_area.rds")  %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
+  mutate(arsenic_ngl = as.numeric(arsenic)*1000) %>%
   group_by(ID) %>%
-  mutate(avg_cbg_vio = mean(as.numeric(arsenic))) %>%
+  mutate(avg_cbg_vio = mean(as.numeric(arsenic_ngl)))  %>%
+  mutate(ars_tr = ifelse(avg_cbg_vio > 20, 20, avg_cbg_vio)) %>%
   distinct(ID, .keep_all = TRUE) %>%
   ungroup
 
-cbg_ars_vio <- cbg_ars_vio %>%
-  mutate(avg_cbg_vio = avg_cbg_vio * 1000 ) #convert to ppb
-
+summary(cbg_ars_vio$avg_cbg_vio)
 
 # Combine with geographic data for US cbgs
 
 ars_vio_all <- left_join(US_cbg_crop, cbg_ars_vio, by = "ID", relationship = "many-to-many") %>% 
-  st_as_sf() %>%
-  mutate(ars_tr = case_when(avg_cbg_vio > 20 ~ 20, 
-                            TRUE ~ avg_cbg_vio))
-
+  st_as_sf()
 
 summary(cbg_ars_vio$avg_cbg_vio)
 
@@ -624,11 +640,13 @@ summary(ars_vio_all$ars_tr)
 
 
 ################################################################################
-## Arsenic Concentrations Map
+## Arsenic violations Maps
 ################################################################################
 
+# Map 10 : arsenic violations CBG
+
 ars_plot <- ggplot() + 
-  geom_sf(data = ars_vio_all, aes(fill = ars_tr, geometry = geometry), color = NA) +
+  geom_sf(data = ars_vio_all, aes(fill = avg_cbg_vio, geometry = geometry), color = NA) +
   scale_fill_distiller(name = "", palette = "Blues", 
                        direction = 1, 
                        #limits=c(0,0.25), breaks = c(0,0.25), labels = c(0,">0.25"),
@@ -636,11 +654,11 @@ ars_plot <- ggplot() +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"ars_vio_cbg_US.png"), 
+png(file = paste0(plot_path,"ars_vio_cbg_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -648,46 +666,72 @@ print(ars_plot)
 
 dev.off()
 
+ars_plot <- ggplot() + 
+  geom_sf(data = ars_vio_all, aes(fill = ars_tr, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "", palette = "Blues", 
+                       direction = 1, 
+                       limits=c(0,20), breaks = c(0,20), labels = c(0,">20"),
+                       na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  coord_sf() +
+  theme_void() +
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
+        legend.box.background = element_blank()) 
+
+png(file = paste0(plot_path,"ars_vio_trunc_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 20,
+    bg = "transparent")
+
+print(ars_plot)
+
+dev.off()
+
+rm(ars_plot, cbg_ars_vio, ars_vio_all)
+
+
 ################################################################################
-## Nitrate Concentrations
+## Nitrate violations
 ################################################################################
 
-cbg_nitrate_vio <- read_rds("data/combined/nitrate_vio_hm_area.rds")  %>%
+cbg_nitrate_vio <- read_rds("Data/combined/area/nitrate_vio_hm_area.rds")  %>%
   mutate(ID=str_pad(ID, 12, pad="0")) %>%
   group_by(ID) %>%
-  mutate(avg_cbg_vio = mean(as.numeric(nitrate))) %>%
+  mutate(avg_cbg_vio = mean(as.numeric(nitrate)),
+        nitrate_tr = if_else(avg_cbg_vio > 20, 20, avg_cbg_vio)) %>%
   distinct(ID, .keep_all = TRUE) %>%
   ungroup
 
 # Combine with geographic data for US cbgs
 
 nitrate_vio_all <- left_join(US_cbg_crop, cbg_nitrate_vio, by = "ID", relationship = "many-to-many") %>% 
-  st_as_sf()  %>%
- mutate(nitrate_tr = if_else(avg_cbg_vio > 20, 20, avg_cbg_vio))
+  st_as_sf() 
 
 summary(cbg_nitrate_vio$avg_cbg_vio)
+
 summary(nitrate_vio_all$avg_cbg_vio)
 
 ################################################################################
-## Nitrate Concentration Maps
+## Arsenic violations Maps
 ################################################################################
 
+# Map 10 : nitrate violations CBG
 
 nitrate_plot <- ggplot() + 
-  geom_sf(data = nitrate_vio_all, aes(fill = nitrate_tr, geometry = geometry), color = NA) +
+  geom_sf(data = nitrate_vio_all, aes(fill = avg_cbg_vio, geometry = geometry), color = NA) +
   scale_fill_distiller(name = "", palette = "RdPu", 
                        direction = 1, 
                        #limits=c(0,0.25), 
-                       breaks = c(0,20 ), labels = c(0,">20"),
+                       # breaks = c(0,0.1), labels = c(0,">0.1"),
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"nitrate_vio_cbg_US.png"), 
+png(file = paste0(plot_path,"nitrate_vio_cbg_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -695,14 +739,38 @@ print(nitrate_plot)
 
 dev.off()
 
+nitrate_plot <- ggplot() + 
+  geom_sf(data = nitrate_vio_all, aes(fill = nitrate_tr, geometry = geometry), color = NA) +
+  scale_fill_distiller(name = "", palette = "RdPu", 
+                       direction = 1, 
+                       limits=c(0,20), 
+                       breaks = c(0,20), labels = c(0,">20"),
+                       na.value = scales::alpha("#DCDCDC", 0.5)) +
+  geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  coord_sf() +
+  theme_void() +
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
+        legend.box.background = element_blank()) 
+
+png(file = paste0(plot_path,"nitrate_tr_cbg_US_hm.png"), 
+    width = 1915, height = 1077, units = "px", pointsize = 20,
+    bg = "transparent")
+
+print(nitrate_plot)
+
+dev.off()
+
+rm(nitrate_vio_all, cbg_nitrate_vio, nitrate_plot)
+
 
 ################################################################################
 ## Country demographic maps
 ################################################################################
 
-hm_cbg <- read.csv("data/demographics/hm_dems.csv")
+hm_cbg <- read.csv("Data/demographics/hm_dems.csv")
 
-pwsid_cbg <- read.csv("data/demographics/hm_dems.csv") %>%
+pwsid_cbg <- read.csv("Data/demographics/hm_dems.csv") %>%
   dplyr::select(-contains("P_")) %>%
   clean_names() %>%
   mutate(ID=str_pad(id, 12, pad="0"))
@@ -719,17 +787,17 @@ st_as_sf(pwsid_cbg) #set as spatial object
 
 race_plot <- ggplot() + 
   geom_sf(data = pwsid_cbg, aes(fill = minorpct, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "% People of \nColor", palette = "BuPu", 
+  scale_fill_distiller(name = "", palette = "BuPu", 
                        direction = 1, 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"race_cbg_US.png"), 
+png(file = paste0(plot_path,"race_cbg_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -742,17 +810,17 @@ dev.off()
 
 inc_plot <- ggplot() + 
   geom_sf(data = pwsid_cbg, aes(fill = lowincpct, geometry = geometry), color = NA) +
-  scale_fill_distiller(name = "% Below 2X Federal\nPoverty Line", palette = "RdPu", 
+  scale_fill_distiller(name = "", palette = "RdPu", 
                        direction = 1, 
                        na.value = scales::alpha("#DCDCDC", 0.5)) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   coord_sf() +
   theme_void() +
-  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 28), 
-        legend.title = element_text(family = "serif", size = 28), legend.position = "right", 
+  theme(legend.key.size = unit(2, 'cm'),legend.text = element_text(family = "serif", size = 32), 
+        legend.title = element_text(family = "serif", size = 32), legend.position = "right", 
         legend.box.background = element_blank()) 
 
-png(file = paste0(plot_path,"inc_cbg_US.png"), 
+png(file = paste0(plot_path,"inc_cbg_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 20,
     bg = "transparent")
 
@@ -761,3 +829,4 @@ print(inc_plot)
 dev.off()
 
 rm(pwsid_cbg, inc_plot, race_plot)
+
