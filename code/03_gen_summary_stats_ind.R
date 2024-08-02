@@ -125,8 +125,6 @@ saveRDS(sum_total, "Data/boundary_sum_stats.rds")
 
 ## Make into a latex table
 
-library(xtable)
-
 sum_total <- readRDS("Data/boundary_sum_stats.rds") 
   #mutate(across(everything(), as.character)) %>%
 sum_total$tot_pop <- lapply(signif(sum_total$tot_pop, digits = 2), format, digits = 2, scientific=F, big.mark =  ",")
@@ -263,7 +261,6 @@ saveRDS(sum_total, "Data/boundary_sum_stats_noZ.rds")
 
 ## Make into a latex table
 
-library(xtable)
 
 sum_total <- readRDS("Data/boundary_sum_stats_noZ.rds") 
 #mutate(across(everything(), as.character)) %>%
@@ -361,7 +358,7 @@ for (b in boundary) {
     rel_risk <- water_data %>%
       mutate(pop_served = as.numeric(pop_served)) %>%
       filter(pop_served != 0)%>% #remove systems with no pop served
-      rowwise %>%
+      #rowwise %>%
       mutate(whitepct = (1-minorpct)) %>%
       mutate(minor_served = minorpct*pop_served) %>%
       mutate(black_served = frac_black*pop_served) %>% #black population served
