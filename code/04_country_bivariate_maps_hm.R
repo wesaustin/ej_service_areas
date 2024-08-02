@@ -85,24 +85,22 @@ US_st_crop <- readRDS("data/census_geo/US_st_crop.rds")
 ## Health violations
 ################################################################################
 
-cbg_HB_vio <- readRDS("data/combined/HB_vio_hm_area.rds") %>%
+cbg_HB_vio <- readRDS("Data/combined/area/HB_vio_hm_area.rds") %>%
   mutate(ID = as.character(ID)) %>%
-  mutate(ID=str_pad(ID, 12, pad="0"))
-
-# For cbg with more than one PWSID, find average number of violations at the cbg level
-# then collapse to include only 1 observation per census cbg level (12-digit "ID") 
-
-cbg_HB_vio <- cbg_HB_vio %>%
+  mutate(ID=str_pad(ID, 12, pad="0"))  %>%
   group_by(ID) %>%
   mutate(avg_vio_cbg = mean(total_violations, na.rm = TRUE)) %>%
   mutate(avg_vio_length = mean(diff_days_max)) %>%
   distinct(ID, .keep_all = TRUE) 
 
-#205662 obs
+# For cbg with more than one PWSID, find average number of violations at the cbg level
+# then collapse to include only 1 observation per census cbg level (12-digit "ID") 
+
+# 205662 obs
 
 HB_vio_all <- left_join(US_cbg_crop, cbg_HB_vio) 
 
-st_as_sf(HB_vio_all)
+# st_as_sf(HB_vio_all)
 
 ################################################################################
 ## Create bivariate map
@@ -115,15 +113,6 @@ summary(HB_vio_all$avg_vio_cbg)
 #    0.00    0.00    0.00    0.93    0.50  176.00   77727 
 
 summary(cbg_HB_vio$avg_vio_cbg)
-
-state_sum <- HB_vio_all %>%
-  st_drop_geometry %>%
-  group_by(state_name) %>%
-  summarize(count = n(),
-            avg_vio = mean(total_violations, na.rm = TRUE))
-
-
-summary(HB_vio_all$minorpct)
 
 summary(cbg_HB_vio$minorpct)
 
@@ -159,7 +148,7 @@ legend <- bi_legend(pal = custom_pal,
                     dim = 3,
                     xlab = "Violations →",
                     ylab = "% People of color →",
-                    size = 20,
+                    size = 30,
                     breaks = breaks,
                     arrows = FALSE,
                     base_family = "serif")
@@ -169,7 +158,7 @@ legend <- bi_legend(pal = custom_pal,
 
 hb_minor <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 
 png(file = paste0(plot_path,"hb_POC_biv_US_hm.png"), 
@@ -211,7 +200,7 @@ legend <- bi_legend(pal = custom_pal,
                     dim = 3,
                     xlab = "Violations →",
                     ylab = "% Low income →",
-                    size = 20,
+                    size = 30,
                     breaks = breaks,
                     arrows = FALSE,
                     base_family = "serif")
@@ -221,7 +210,7 @@ legend <- bi_legend(pal = custom_pal,
 
 hb_lowinc <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 png(file = paste0(plot_path,"hb_lowinc_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -240,11 +229,7 @@ rm(HB_vio_all, cbg_HB_vio, hb_lowinc, hb_minor)
 
 cbg_lcr_vio <- read_rds("Data/combined/area/lcr_vio_hm_area.rds")  %>%
   mutate(ID=str_pad(ID, 12, pad="0"))%>%
-  mutate(ID = as.character(ID)) #load lcr data
-
-# CBG
-
-cbg_lcr_vio <- cbg_lcr_vio %>%
+  mutate(ID = as.character(ID))  %>%
   group_by(ID) %>%
   mutate(pb_vio_cbg = mean(pb_vio_count)) %>% #average number of lead violations per CBG
   mutate(cu_vio_cbg = mean(cu_vio_count)) %>% #average number of copper violations per CBG
@@ -252,11 +237,7 @@ cbg_lcr_vio <- cbg_lcr_vio %>%
   mutate(avg_cu_cbg = mean(avg_cu_level)) %>% #average copper levels per CBG
   distinct(ID, .keep_all = TRUE)
 
-
-
 lcr_vio_all <- left_join(US_cbg_crop, cbg_lcr_vio) 
-
-st_as_sf(lcr_vio_all) #set as spatial object
 
 ################################################################################
 ## Create bivariate map : Lead levels
@@ -265,6 +246,8 @@ st_as_sf(lcr_vio_all) #set as spatial object
 # 1. define the action level. Currently, the function takes two numbers for the action_vector, can be modified
 
 summary(lcr_vio_all$avg_pb_level) #distribution
+
+summary(lcr_vio_all$minorpct) #distribution
 
 #3rd quartile = 0.01, so we will use that as a limit for "frequent violators"
 
@@ -286,22 +269,25 @@ map <- ggplot(data_biscale_al) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   bi_theme(bg_color = "#ffffff")
 
+breaks <- list(bi_x = c("0", "0.005", "0.015", ">12"),
+               bi_y = c("0", "0.11", "0.63", "1"))
+
 legend <- bi_legend(pal = custom_pal,
                     dim = 3,
                     xlab = "Lead Levels →",
-                    ylab = "% POC →",
-                    size = 20,
+                    ylab = "% people of color →",
+                    size = 30,
                     arrows = FALSE,
+                    breaks = breaks,
                     base_family = "serif")
 
 # Plot and legend
 
 pb_minor <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
-
-png(file = paste0(plot_path,"pb_lvl_POC_biv_US_hm.png"), 
+png(file = paste0(plot_path,"pb_lvl_minor_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
     bg = "transparent")
 
@@ -310,6 +296,8 @@ print(pb_minor)
 dev.off()
 
 #Establish biscale comparison: PB levels and % Low Income
+summary(lcr_vio_all$lowinc) #distribution
+
 
 data_biscale_al <- bi_class_al(lcr_vio_all,
                                x = avg_pb_cbg, y = lowinc, #%Low income
@@ -320,26 +308,28 @@ data_biscale_al <- bi_class_al(lcr_vio_all,
 # Map 2: Biscale violations: Lead levels and low income
 
 map <- ggplot(data_biscale_al) +
-  geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), 
-          color = NA , size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "DkCyan", dim = 3) +
-  bi_theme() +
+  geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = custom_pal, dim = 3) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
-  theme(plot.background = element_blank())
+  bi_theme(bg_color = "#ffffff")
 
-legend <- bi_legend(pal = "DkCyan",
+breaks <- list(bi_x = c("0", "45", "75", "120"),
+               bi_y = c("0", "0.16", "0.47", "1"))
+
+legend <- bi_legend(pal = custom_pal,
                     dim = 3,
                     xlab = "Lead Levels →",
-                    ylab = "% Low Inc →",
-                    size = 20,
+                    ylab = "% low income →",
+                    size = 30,
                     arrows = FALSE,
+                    breaks = breaks,
                     base_family = "serif")
 
 # Plot and legend
 
 pb_lowinc <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 png(file = paste0(plot_path,"pb_lvl_lowinc_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -349,7 +339,7 @@ print(pb_lowinc)
 
 dev.off()
 
-rm(cbg_lcr_vio, pb_minor, pb_lowinc)
+# rm(cbg_lcr_vio, pb_minor, pb_lowinc)
 
 ################################################################################
 ## Create bivariate map : Lead violations (count)
@@ -358,6 +348,9 @@ rm(cbg_lcr_vio, pb_minor, pb_lowinc)
 # 1. define the action level. Currently, the function takes two numbers for the action_vector, can be modified
 
 summary(lcr_vio_all$pb_vio_cbg) #distribution
+
+summary(lcr_vio_all$minorpct) #distribution
+
 
 #3rd quartile = 1, so we will use that as a limit for "frequent violators"
 
@@ -380,19 +373,24 @@ map <- ggplot(data_biscale_al) +
   bi_theme() +
   theme(plot.background = element_blank())
 
+
+breaks <- list(bi_x = c("0", "0.9", "1", "35"),
+               bi_y = c("0", "0.11", "0.63", "1"))
+
 legend <- bi_legend(pal = custom_pal,
                     dim = 3,
-                    xlab = "Violations →",
-                    ylab = "% POC →",
-                    size = 20,
+                    xlab = "ALEs →",
+                    ylab = "% people of color →",
+                    size = 30,
                     arrows = FALSE,
+                    breaks = breaks,
                     base_family = "serif")
 
 # Plot and legend
 
 pb_minor <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 png(file = paste0(plot_path,"pb_vio_POC_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -404,6 +402,8 @@ dev.off()
 
 #Establish biscale comparison: PB levels and % Low Income
 
+summary(lcr_vio_all$lowinc) #distribution
+
 data_biscale_al <- bi_class_al(lcr_vio_all,
                                x = pb_vio_cbg, y = lowinc, #%Low income
                                style = "quantile", dim = 3,
@@ -414,24 +414,28 @@ data_biscale_al <- bi_class_al(lcr_vio_all,
 
 map <- ggplot(data_biscale_al) +
   geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "DkCyan", dim = 3) +
-  bi_theme() +
+  bi_scale_fill(pal = custom_pal, dim = 3) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  bi_theme() +
   theme(plot.background = element_blank())
 
-legend <- bi_legend(pal = "DkCyan",
-                    dim = 3,
-                    xlab = "Violations →",
-                    ylab = "% Low Inc →",
-                    size = 20,
-                    arrows = FALSE,
-                    base_family = "serif")
 
+breaks <- list(bi_x = c("0", "0.9", "1", "35"),
+               bi_y = c("0", "0.16", "0.47", "1"))
+
+legend <- bi_legend(pal = custom_pal,
+                    dim = 3,
+                    xlab = "ALEs →",
+                    ylab = "% low income →",
+                    size = 30,
+                    arrows = FALSE,
+                    breaks = breaks,
+                    base_family = "serif")
 # Plot and legend
 
 pb_lowinc <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 png(file = paste0(plot_path,"pb_vio_lowinc_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -441,24 +445,27 @@ print(pb_lowinc)
 
 dev.off()
 
-
 rm(lcr_vio_all, cbg_lcr_vio, pb_minor, pb_lowinc)
 
 ################################################################################
 ## PFAS violations
 ################################################################################
 
-cbg_pfas_vio <- cbg_pfas_vio %>%
+cbg_pfas_vio <- read_rds("Data/combined/area/pfas_vio_hm_area.rds")  %>%
+  mutate(ID=str_pad(ID, 12, pad="0")) %>%
+  mutate(ID = as.character(ID)) %>% #load pfas data
   group_by(ID) %>%
-  mutate(cbg_det_share = mean(detection_share)) %>% #avg pfas count per cbg
-  mutate(avg_conc_cbg = mean(concentration_sum)) %>% #avg pfas concentration per cbg
+  mutate(cbg_pfas_count = mean(pfas_count, na.rm = T)) %>% #avg pfas count per cbg
+  mutate(avg_conc_cbg = mean(concentration_avg, na.rm = T)) %>% #avg pfas concentration per cbg
+  mutate(avg_max_pfas = mean(concentration_max, na.rm = T)) %>%
+  mutate(avg_det_share = mean(detection_share, na.rm = T)) %>%
   distinct(ID, .keep_all = TRUE) 
 
 pfas_vio_all <- left_join(US_cbg_crop, cbg_pfas_vio) 
 
 summary(cbg_pfas_vio$avg_conc_cbg) 
-# 0.012
-summary(cbg_pfas_vio$cbg_det_share) #distribution
+# 6.2
+summary(cbg_pfas_vio$minorpct) #distribution
 # 0.02
 
 ################################################################################
@@ -467,19 +474,7 @@ summary(cbg_pfas_vio$cbg_det_share) #distribution
 
 # Map 5 : PFAS concentrations cbg
 
-pfas_vio_conc <- pfas_vio_all %>%
-  mutate(concentration_sum_ppt = concentration_sum*1000) %>%
-  mutate(concentration_sum_ppt = ifelse(concentration_sum_ppt > 1, 1, concentration_sum_ppt))
-
-# 1. define the action level. Currently, the function takes two numbers for the action_vector, can be modified
-
-summary(pfas_vio_all$avg_conc_cbg)
-
-summary(pfas_vio_all$cbg_det_share)
-
-#3rd quartile = 1, so we will use that as a limit for "frequent violators"
-
-action_vector <- c(0.01,.02) #Modify for indicator-specific
+action_vector <- c(0.1,6) #Modify for indicator-specific
 
 #Establish biscale comparison: pfas violations and % POC
 
@@ -495,23 +490,27 @@ data_biscale_al <- bi_class_al(pfas_vio_all,
 map <- ggplot(data_biscale_al) +
   geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
   bi_scale_fill(pal = custom_pal, dim = 3) +
-  bi_theme() +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  bi_theme() +
   theme(plot.background = element_blank())
+
+
+breaks <- list(bi_x = c("0", "0.1", "6", "836"),
+               bi_y = c("0", "0.11", "0.63", "1"))
 
 legend <- bi_legend(pal = custom_pal,
                     dim = 3,
-                    xlab = "PFAS Concentration →",
-                    ylab = "% POC →",
-                    size = 20,
+                    xlab = "PFAS →",
+                    ylab = "% people of color →",
+                    size = 30,
                     arrows = FALSE,
+                    breaks = breaks,
                     base_family = "serif")
-
 # Plot and legend
 
 pfas_minor <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 png(file = paste0(plot_path,"pfas_minor_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -525,7 +524,7 @@ dev.off()
 #Establish biscale comparison: pfas violations and % low income
 
 data_biscale_al <- bi_class_al(pfas_vio_all,
-                               x = pfas_count_cbg, y = lowinc, #%Low income
+                               x = avg_conc_cbg, y = lowinc, #%Low income
                                style = "quantile", dim = 3,
                                action_level = T, action_vector = action_vector) %>%
   filter(!str_detect(bi_class, 'NA'))
@@ -534,24 +533,30 @@ data_biscale_al <- bi_class_al(pfas_vio_all,
 
 map <- ggplot(data_biscale_al) +
   geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "DkCyan", dim = 3) +
-  bi_theme() +
+  bi_scale_fill(pal = custom_pal, dim = 3) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  bi_theme() +
   theme(plot.background = element_blank())
 
-legend <- bi_legend(pal = "DkCyan",
+
+breaks <- list(bi_x = c("0", "0.1", "6", "836"),
+               bi_y = c("0", "0.16", "0.47", "1"))
+
+legend <- bi_legend(pal = custom_pal,
                     dim = 3,
-                    xlab = "# PFAS Detected →",
-                    ylab = "% Low Inc →",
-                    size = 20,
+                    xlab = "PFAS →",
+                    ylab = "% low income →",
+                    size = 30,
                     arrows = FALSE,
+                    breaks = breaks,
                     base_family = "serif")
 
 # Plot and legend
 
 pfas_lowinc <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
+
 
 png(file = paste0(plot_path,"pfas_lowinc_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -561,27 +566,20 @@ print(pfas_lowinc)
 
 dev.off()
 
-
 rm(pfas_vio_all, cbg_pfas_vio, pfas_lowinc, pfas_minor)
 
 ################################################################################
 ## DBP violations
 ################################################################################
 
-cbg_dbp_vio <- read_rds("Data/combined/area/dbp_vio_hm_area.rds")%>%
+cbg_dbp_vio <- read_rds("Data/combined/area/dbp_vio_hm_area_v2.rds")%>%
   mutate(ID = as.character(ID)) %>%
-  mutate(ID=str_pad(ID, 12, pad="0"))
-
-# CBG
-
-cbg_dbp_vio <- cbg_dbp_vio %>%
+  mutate(ID=str_pad(ID, 12, pad="0")) %>%
   group_by(ID) %>%
   mutate(avg_dbp_cbg = mean(combined_dbp)) %>%
   distinct(ID, .keep_all = TRUE) 
 
 dbp_vio_all <- left_join(US_cbg_crop, cbg_dbp_vio) 
-
-st_as_sf(dbp_vio_all) #set as spatial object
 
 ################################################################################
 ## Create bivariate map
@@ -590,6 +588,8 @@ st_as_sf(dbp_vio_all) #set as spatial object
 # 1. define the action level. Currently, the function takes two numbers for the action_vector, can be modified
 
 summary(dbp_vio_all$avg_dbp_cbg) #distribution
+
+summary(dbp_vio_all$minorpct) #distribution
 
 #3rd quartile = 64, so we will use that as a limit for "frequent violators"
 
@@ -608,23 +608,28 @@ data_biscale_al <- bi_class_al(dbp_vio_all,
 map <- ggplot(data_biscale_al) +
   geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
   bi_scale_fill(pal = custom_pal, dim = 3) +
-  bi_theme() +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  bi_theme() +
   theme(plot.background = element_blank())
+
+
+breaks <- list(bi_x = c("0", "10", "60", "660"),
+               bi_y = c("0", "0.11", "0.63", "1"))
 
 legend <- bi_legend(pal = custom_pal,
                     dim = 3,
-                    xlab = "DBP Concentration →",
-                    ylab = "% POC →",
-                    size = 20,
+                    xlab = "DBPs →",
+                    ylab = "% people of color →",
+                    size = 30,
                     arrows = FALSE,
+                    breaks = breaks,
                     base_family = "serif")
 
 # Plot and legend
 
 dbp_minor <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 png(file = paste0(plot_path,"dbp_minor_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -637,6 +642,9 @@ dev.off()
 
 #Establish biscale comparison: dbp violations and % low income
 
+summary(dbp_vio_all$lowinc) #distribution
+
+
 data_biscale_al <- bi_class_al(dbp_vio_all,
                                x = avg_dbp_cbg, y = lowinc, #%Low income
                                style = "quantile", dim = 3,
@@ -648,25 +656,29 @@ data_biscale_al <- bi_class_al(dbp_vio_all,
 
 map <- ggplot(data_biscale_al) +
   geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "DkCyan", dim = 3) +
-  bi_theme() +
+  bi_scale_fill(pal = custom_pal, dim = 3) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
+  bi_theme() +
   theme(plot.background = element_blank())
 
 
-legend <- biscale::bi_legend(pal = "DkCyan",
-                             dim = 3,
-                             xlab = "DBP Concentration →",
-                             ylab = "% Low Income →",
-                             size = 20,
-                             arrows = FALSE,
-                             base_family = "serif")
+breaks <- list(bi_x = c("0", "10", "60", "660"),
+               bi_y = c("0", "0.16", "0.47", "1"))
+
+legend <- bi_legend(pal = custom_pal,
+                    dim = 3,
+                    xlab = "DBPs →",
+                    ylab = "% low income →",
+                    size = 30,
+                    arrows = FALSE,
+                    breaks = breaks,
+                    base_family = "serif")
 
 # Plot and legend
 
 dbp_lowinc <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 png(file = paste0(plot_path,"dbp_lowinc_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -676,7 +688,6 @@ print(dbp_lowinc)
 
 dev.off()
 
-
 rm(dbp_vio_all, cbg_dbp_vio, dbp_lowinc, dbp_minor)
 
 ################################################################################
@@ -685,19 +696,12 @@ rm(dbp_vio_all, cbg_dbp_vio, dbp_lowinc, dbp_minor)
 
 cbg_tcr_vio <- read_rds("Data/combined/area/tcr_vio_hm_area.rds") %>%
   mutate(ID = as.character(ID)) %>%
-  mutate(ID=str_pad(ID, 12, pad="0"))
-
-# CBG
-
-cbg_tcr_vio <- cbg_tcr_vio %>%
+  mutate(ID=str_pad(ID, 12, pad="0")) %>%
   group_by(ID) %>%
   mutate(tcr_det_cbg = mean(detection_share)) %>%
   distinct(ID, .keep_all = TRUE)
 
 tcr_vio_all <- left_join(US_cbg_crop, cbg_tcr_vio) 
-
-st_as_sf(tcr_vio_all) #set as spatial object
-
 
 ################################################################################
 ## Create bivariate map
@@ -707,9 +711,13 @@ st_as_sf(tcr_vio_all) #set as spatial object
 
 summary(tcr_vio_all$tcr_det_cbg) #distribution
 
-#3rd quartile = 0.01, but we can use .25 as a limit for "high concentrations"
+# 0.03
 
-action_vector <- c(0.01,.10) #Modify for indicator-specific
+summary(tcr_vio_all$minorpct) #distribution
+
+#3rd quartile = 64, so we will use that as a limit for "frequent violators"
+
+action_vector <- c(.01,.03) #Modify for indicator-specific
 
 #Establish biscale comparison: tcr violations and % POC
 
@@ -728,19 +736,24 @@ map <- ggplot(data_biscale_al) +
   bi_theme() +
   theme(plot.background = element_blank())
 
+
+breaks <- list(bi_x = c("0", ".01", ".03", "1"),
+               bi_y = c("0", "0.11", "0.63", "1"))
+
 legend <- bi_legend(pal = custom_pal,
                     dim = 3,
-                    xlab = "TCR Concentration →",
-                    ylab = "% POC →",
-                    size = 20,
+                    xlab = "Coliforms →",
+                    ylab = "% people of color →",
+                    size = 30,
                     arrows = FALSE,
+                    breaks = breaks,
                     base_family = "serif")
 
 # Plot and legend
 
 tcr_minor <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 png(file = paste0(plot_path,"tcr_minor_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -753,6 +766,9 @@ dev.off()
 
 #Establish biscale comparison: tcr violations and % low income
 
+summary(tcr_vio_all$lowinc) #distribution
+
+
 data_biscale_al <- bi_class_al(tcr_vio_all,
                                x = tcr_det_cbg, y = lowinc, #%Low income
                                style = "quantile", dim = 3,
@@ -761,27 +777,32 @@ data_biscale_al <- bi_class_al(tcr_vio_all,
 
 # Map 1: Biscale violations: tcr violations and low income
 
+
 map <- ggplot(data_biscale_al) +
   geom_sf(data = data_biscale_al, mapping = aes(fill = bi_class), color = NA , size = 0.1, show.legend = FALSE) +
-  bi_scale_fill(pal = "DkCyan", dim = 3) +
+  bi_scale_fill(pal = custom_pal, dim = 3) +
   geom_sf(data = US_st_crop, fill = NA, color = "#969696") +
   bi_theme() +
   theme(plot.background = element_blank())
 
-legend <- bi_legend(pal = "DkCyan",
-                    dim = 3,
-                    xlab = "TCR Concentration →",
-                    ylab = "% Low Income →",
-                    size = 20,
-                    arrows = FALSE,
-                    base_family = "serif")
 
+breaks <- list(bi_x = c("0", ".01", ".03", "1"),
+               bi_y = c("0", "0.16", "0.47", "1"))
+
+legend <- bi_legend(pal = custom_pal,
+                    dim = 3,
+                    xlab = "Coliforms →",
+                    ylab = "% low income →",
+                    size = 30,
+                    arrows = FALSE,
+                    breaks = breaks,
+                    base_family = "serif")
 
 # Plot and legend
 
 tcr_lowinc <- cowplot::ggdraw() +
   draw_plot(map, x = 0, y = 0, width = 0.95, height = 0.95) +
-  draw_plot(legend, x = 0.75, y = 0.15, width = 0.2, height = 0.2)
+  draw_plot(legend, x = 0.75, y = 0.15, width = 0.3, height = 0.3)
 
 png(file = paste0(plot_path,"tcr_lowinc_biv_US_hm.png"), 
     width = 1915, height = 1077, units = "px", pointsize = 12,
@@ -791,12 +812,7 @@ print(tcr_lowinc)
 
 dev.off()
 
-
 rm(tcr_vio_all, cbg_tcr_vio, tcr_lowinc, tcr_minor)
-
-
-
-
 
 
 ################################################################################
