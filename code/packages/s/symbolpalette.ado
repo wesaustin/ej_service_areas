@@ -1,4 +1,4 @@
-*! version 1.0.2  27dec2018  Ben Jann
+*! version 1.0.1  27mar2018 Ben Jann
 
 program symbolpalette
     version 9.2
@@ -250,9 +250,8 @@ end
 
 program Graph2
     _parse comma palettes 0 : 0
-    syntax [, TItle(passthru) LABels(str asis) PLabels(str asis) ///
-        GRopts(str asis) MSIZe(passthru) VERTical HORizontal * ]
-    if `"`labels'"'!="" local plabels `"`labels'"'
+    syntax [, TItle(passthru) PLabels(str asis) GRopts(str asis) ///
+        MSIZe(passthru) VERTical HORizontal * ]
     if `"`msize'"'=="" local msize msize(large)
     local orientation `vertical' `horizontal'
     if "`orientation'"=="" local orientation horizontal

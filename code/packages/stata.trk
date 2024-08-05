@@ -1,4 +1,4 @@
-* 00000005
+* 00000006
 *! version 1.0.0
 * Do not erase or edit this file
 * It is used by Stata to track the ado and help
@@ -143,4 +143,25 @@ f s\scheme-black.scheme
 f s\scheme-white.scheme
 f s\scheme-black2.scheme
 f s\scheme-white2.scheme
+e
+S http://www.stata-journal.com/software/sj18-4
+N gr0075.pkg
+D 29 Jul 2024
+U 6
+d SJ18-4 gr0075. Color palettes, symbol palettes, and...
+d Color palettes, symbol palettes, and line-
+d   pattern palettes
+d by Ben Jann, University of Bern, Bern,
+d      Switzerland
+d Support:  ben.jann@soz.unibe.ch
+d After installation, type help {cmd:colorpalette},
+d   {cmd:linepalette}, {cmd:palettes}, and
+d   {cmd:symbolpalette}
+f c\colorpalette.ado
+f c\colorpalette.hlp
+f l\linepalette.ado
+f l\linepalette.hlp
+f p\palettes.hlp
+f s\symbolpalette.ado
+f s\symbolpalette.hlp
 e

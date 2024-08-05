@@ -1,12 +1,12 @@
 {
     "sortOrder": [
         {
-            "columnIndex": 2,
-            "ascending": true
-        },
-        {
             "columnIndex": 4,
             "ascending": false
+        },
+        {
+            "columnIndex": 2,
+            "ascending": true
         }
     ],
     "path": "C:/Users/gaustin/OneDrive - Environmental Protection Agency (EPA)/NCEE - Water System Service Boundaries/ej_service_areas/code"

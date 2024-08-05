@@ -20,7 +20,7 @@ net install scheme-modern, from("https://raw.githubusercontent.com/mdroste/stata
 set scheme modern, perm 
 graph set window fontface "Times New Roman"
 
-*ssc install colorpallette
+* ssc install colorpallette
 grstyle init
 grstyle set color hue, n(5) opacity(75)
 
@@ -262,3 +262,176 @@ foreach var in hb_rel_risk lcr_rel_risk pfas_rel_risk dbp_rel_risk tcr_rel_risk 
 
 }
 		 
+		 
+		 
+		 
+		 
+		 
+
+
+********************************************************************************
+* Histogram of relative risks by demographic group 
+********************************************************************************
+
+*import delimited "${path}ej_service_areas\data\rel_risk_by_race_all_v2.csv" , clear 	
+import delimited "${path}data\rel_risk\rel_risk_pfas_sensitivity.csv", clear 
+
+replace boundary = "EPA ORD" if boundary == "hm"
+replace boundary = "EPIC" if boundary == "epic"
+replace boundary = "USGS" if boundary == "usgs"
+replace boundary = "County" if boundary == "county"
+replace boundary = "Zipcode" if boundary == "zc"
+
+replace race_cat = "American Indian" if race_cat == "amerind"
+replace race_cat = "Asian" if race_cat == "asian"
+replace race_cat = "Black" if race_cat == "black"
+replace race_cat = "Hispanic" if race_cat == "hisp"
+replace race_cat = "Pacific Islander" if race_cat == "pacisl"
+replace race_cat = "People of Color" if race_cat == "poc"
+cap replace race_cat = "Low-Income" if race_cat == "lowinc"
+drop if race_cat == "People of Color"
+
+gen border = 1 if boundary == "County"
+replace border = 2 if boundary == "Zipcode"
+replace border = 3 if boundary == "USGS"
+replace border = 4 if boundary == "EPIC"
+replace border = 5 if boundary == "EPA ORD"
+
+gen rorder =1 if race_cat  == "American Indian" 
+replace rorder =2 if  race_cat == "Asian" 
+replace rorder =3 if  race_cat == "Black" 
+replace rorder =4 if  race_cat == "Hispanic" 
+replace rorder =5 if  race_cat == "Pacific Islander" 
+replace rorder =6 if  race_cat == "Low-Income" 
+	
+	
+	
+foreach var in total_samples_rel_risk detection_share_rel_risk concentration_max_rel_risk concentration_avg_rel_risk pfas_count_rel_risk	{
+	if `"`var'"'=="total_samples_rel_risk"  {
+		local i "Total Samples Taken"
+	}
+	if `"`var'"'=="detection_share_rel_risk"  {
+		local i "Detection Share"
+	}
+	if `"`var'"'=="concentration_max_rel_risk"  {
+		local i "Sum of Maximum PFAS Concentrations"
+	}
+	if `"`var'"'=="concentration_avg_rel_risk"  {
+		local i "Sum of PFAS-Specific Average Concentrations"
+	}
+	if `"`var'"'=="pfas_count_rel_risk"  {
+		local i "Unique PFAS Count"
+	}
+
+	graph bar `var' , over(border) over(race_cat, sort(rorder)) asyvars name( `var' , replace) ///
+	ytitle("Prevalence Ratio Ratio") yline(1) ///
+	legend(pos(6) cols(5) order(1 "County" 2 "Zipcode" 3 "USGS" 4 "EPIC" 5 "EPA ORD"))
+	graph export "${output}bar_`var'_pfas.png" , as(png) replace
+
+}
+
+
+
+
+
+
+
+********************************************************************************
+* Histogram of relative risks by demographic group - DBPs
+********************************************************************************
+
+
+* note dem_cat = race_cat elsewhere
+
+*import delimited "${path}ej_service_areas\data\rel_risk_by_race_all_v2.csv" , clear 	
+import delimited "${path}data\rel_risk\rel_risk_dbp_sensitivity.csv", clear 
+
+replace boundary = "EPA ORD" if boundary == "hm"
+replace boundary = "EPIC" if boundary == "epic"
+replace boundary = "USGS" if boundary == "usgs"
+replace boundary = "County" if boundary == "county"
+replace boundary = "Zipcode" if boundary == "zc"
+
+replace dem_cat = "American Indian" if dem_cat == "amerind"
+replace dem_cat = "Asian" if dem_cat == "asian"
+replace dem_cat = "Black" if dem_cat == "black"
+replace dem_cat = "Hispanic" if dem_cat == "hisp"
+replace dem_cat = "Pacific Islander" if dem_cat == "pacisl"
+replace dem_cat = "People of Color" if dem_cat == "poc"
+cap replace dem_cat = "Low-Income" if dem_cat == "lowinc"
+drop if dem_cat == "People of Color"
+
+gen border = 1 if boundary == "County"
+replace border = 2 if boundary == "Zipcode"
+replace border = 3 if boundary == "USGS"
+replace border = 4 if boundary == "EPIC"
+replace border = 5 if boundary == "EPA ORD"
+
+gen rorder =1 if dem_cat  == "American Indian" 
+replace rorder =2 if  dem_cat == "Asian" 
+replace rorder =3 if  dem_cat == "Black" 
+replace rorder =4 if  dem_cat == "Hispanic" 
+replace rorder =5 if  dem_cat == "Pacific Islander" 
+replace rorder =6 if  dem_cat == "Low-Income" 
+	
+haa5_rel_risk haa5_syr3_rel_risk haa5_syr4_rel_risk 
+tthm_rel_risk tthm_syr3_rel_risk tthm_syr4_rel_risk 
+combined_dbp_rel_risk combined_dbp_syr3_rel_risk combined_dbp_syr4_rel_risk
+
+* First check if these look similar across SYR 3 and SYR 4
+
+foreach var in combined_dbp_rel_risk combined_dbp_syr3_rel_risk combined_dbp_syr4_rel_risk	{
+	if `"`var'"'=="combined_dbp_rel_risk"  {
+		local i "Combined DBP Measure - All Time"
+	}
+	if `"`var'"'=="combined_dbp_syr3_rel_risk"  {
+		local i "Combined DBP Measure - SYR3"
+	}
+	if `"`var'"'=="combined_dbp_syr4_rel_risk"  {
+		local i "Combined DBP Measure - SYR4"
+	}
+
+	graph bar `var' , over(border) over(dem_cat, sort(rorder)) asyvars name( `var' , replace) ///
+	ytitle("Prevalence Ratio Ratio") yline(1) ///
+	legend(pos(6) cols(5) order(1 "County" 2 "Zipcode" 3 "USGS" 4 "EPIC" 5 "EPA ORD"))
+	graph export "${output}bar_`var'_dbp.png" , as(png) replace
+
+}
+
+
+foreach var in tthm_rel_risk tthm_syr3_rel_risk tthm_syr4_rel_risk 	{
+	if `"`var'"'=="tthm_rel_risk"  {
+		local i "TTHM - All Time"
+	}
+	if `"`var'"'=="tthm_syr3_rel_risk"  {
+		local i "TTHM - SYR3"
+	}
+	if `"`var'"'=="tthm_syr4_rel_risk"  {
+		local i "TTHM - SYR4"
+	}
+
+	graph bar `var' , over(border) over(dem_cat, sort(rorder)) asyvars name( `var' , replace) ///
+	ytitle("Prevalence Ratio") yline(1) ///
+	legend(pos(6) cols(5) order(1 "County" 2 "Zipcode" 3 "USGS" 4 "EPIC" 5 "EPA ORD"))
+	graph export "${output}bar_`var'_dbp.png" , as(png) replace
+
+}
+
+
+foreach var in haa5_rel_risk haa5_syr3_rel_risk haa5_syr4_rel_risk 	{
+	if `"`var'"'=="haa5_rel_risk"  {
+		local i "HAA5 - All Time"
+	}
+	if `"`var'"'=="haa5_syr3_rel_risk"  {
+		local i "HAA5 - SYR3"
+	}
+	if `"`var'"'=="haa5_syr4_rel_risk"  {
+		local i "HAA5 - SYR4"
+	}
+
+	graph bar `var' , over(border) over(dem_cat, sort(rorder)) asyvars name( `var' , replace) ///
+	ytitle("Prevalence Ratio") yline(1) ///
+	legend(pos(6) cols(5) order(1 "County" 2 "Zipcode" 3 "USGS" 4 "EPIC" 5 "EPA ORD"))
+	graph export "${output}bar_`var'_dbp.png" , as(png) replace
+
+}

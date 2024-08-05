@@ -1,6 +1,6 @@
 * Program to Create PFAS Drinking Water Indicator 
 * National Center for Environmental Economics 
-* Last edited: 7/24/24
+* Last edited: 8/5/24
 
 
 ********************************************************************************
@@ -218,6 +218,13 @@ append using `maine'
           1 |    956,570       59.82      100.00
 ------------+----------------------------------- */	
 	
+	* gen year variable 
+	gen year = substr(date , -4 , .)
+	destring year , replace
+	drop if year == 2030 
+	
+	gen post_2020 = ( year >= 2020 & year !=. ) 
+	
 	* variables no longer necessary 
 	drop sampleid samplepointid mode state units date
 
@@ -230,26 +237,46 @@ bys pwsid contaminant : egen  concentration_max  = max(concentration )
 bys pwsid : egen detection_share = mean(detect)
 bys pwsid contaminant : egen  pfas_count  = max(detect ) 
 
+* gen post 2020 PFAS measures 
+
+bys pwsid : egen total_samples_2020 = total(post_2020)
+bys pwsid contaminant : egen concentration_avg_2020  = mean(concentration ) if post_2020 ==1 
+bys pwsid contaminant : egen  concentration_max_2020  = max(concentration )  if  post_2020 ==1 
+bys pwsid : egen detection_share_2020 = mean(detect) if  post_2020 ==1 
+bys pwsid contaminant : egen  pfas_count_2020  = max(detect )  if post_2020 ==1 
+
+
 * first collapse to pwsid-by-contaminant level 
-collapse  	(mean) total_samples concentration_avg concentration_max detection_share pfas_count , ///
-			by(pwsid contaminant) 
+	* note many of these are already generated at the PWSID level, so taking the mean across contaminants is fine. 
+collapse  	(mean) 	total_samples total_samples_2020 ///
+					concentration_avg concentration_avg_2020 ///
+					concentration_max concentration_max_2020 ///
+					detection_share detection_share_2020 ///
+					pfas_count pfas_count_2020 , ///
+					by(pwsid contaminant) 
+					
+					
+bys pwsid : egen pfoa_and_pfos = sum(concentration_avg) if contaminant == "PFOS" | contaminant == "PFOA"
+bys pwsid : egen pfoa_and_pfos_2020 = sum(concentration_avg_2020) if ( contaminant == "PFOS" | contaminant == "PFOA" ) 
+					
 
 * Next we need to sum the average or maximum concentrations by contaminant while collapsing to PWSID-level  
-collapse 	(mean) total_samples detection_share ///
-			(sum) concentration_avg concentration_max pfas_count  ,	by(pwsid ) 
-		
-
-drop if pwsid == ""
-
+collapse 	(mean) 	total_samples total_samples_2020 ///
+					detection_share detection_share_2020 ///
+					pfoa_and_pfos pfoa_and_pfos_2020 ///
+			(sum) 	concentration_avg concentration_avg_2020 ///
+					concentration_max concentration_max_2020 ///
+					pfas_count pfas_count_2020  ,	///
+					by(pwsid ) 
 	
 
 ********************************************************************************
 * Save Indicator 
 ********************************************************************************
 
-save "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\NCEE - Water System Service Boundaries\ej_service_areas\data\indicators\indicators_pfas_v2.dta" , replace
+save "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\NCEE - Water System Service Boundaries\ej_service_areas\data\indicators\indicators_pfas_v3.dta" , replace
 
-export delimited using "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\NCEE - Water System Service Boundaries\ej_service_areas\data\indicators\indicators_pfas_v2.csv", replace
+export delimited using "C:\Users\gaustin\OneDrive - Environmental Protection Agency (EPA)\NCEE - Water System Service Boundaries\ej_service_areas\data\indicators\indicators_pfas_v3.csv", replace
 
 
 

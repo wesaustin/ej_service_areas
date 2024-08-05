@@ -1,4 +1,4 @@
-*! version 1.0.1  27dec2018  Ben Jann
+*! version 1.0.0  17dec2017 Ben Jann
 
 program linepalette
     version 9.2
@@ -251,9 +251,8 @@ end
 
 program Graph2
     _parse comma palettes 0 : 0
-    syntax [, TItle(passthru) LABels(str asis) PLabels(str asis) ///
-        GRopts(str asis) LWidth(passthru) VERTical HORizontal * ]
-    if `"`labels'"'!="" local plabels `"`labels'"'
+    syntax [, TItle(passthru) PLabels(str asis) GRopts(str asis) ///
+        LWidth(passthru) VERTical HORizontal * ]
     if `"`lwidth'"'=="" local lwidth lwidth(medthick)
     local orientation `vertical' `horizontal'
     if "`orientation'"=="" local orientation vertical
